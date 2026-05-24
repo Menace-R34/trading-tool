@@ -1,0 +1,155 @@
+Ticker,Name,Land,Aktiv,Analysieren
+SAP.DE,SAP,DE,True,True
+SIE.DE,Siemens,DE,True,True
+ALV.DE,Allianz,DE,True,True
+BAS.DE,BASF,DE,True,True
+BMW.DE,BMW,DE,True,True
+MBG.DE,Mercedes-Benz,DE,True,True
+VOW3.DE,Volkswagen VZ,DE,True,True
+DTE.DE,Deutsche Telekom,DE,True,True
+DPW.DE,DHL Group,DE,True,True
+IFX.DE,Infineon,DE,True,True
+ADS.DE,Adidas,DE,True,True
+LIN,Linde,US,True,True
+RWE.DE,RWE,DE,True,True
+EOAN.DE,E.ON,DE,True,True
+MTX.DE,MTU Aero Engines,DE,True,True
+SHL.DE,Siemens Healthineers,DE,True,True
+FRE.DE,Fresenius,DE,True,True
+FME.DE,FMC,DE,True,True
+BEI.DE,Beiersdorf,DE,True,True
+HEI.DE,Heidelberg Materials,DE,True,True
+HEN3.DE,Henkel,DE,True,True
+ZAL.DE,Zalando,DE,True,True
+PUM.DE,Puma,DE,True,True
+LEG.DE,LEG Immobilien,DE,True,True
+SY1.DE,Symrise,DE,True,True
+AIXA.DE,Aixtron,DE,True,True
+EVK.DE,Evonik,DE,True,True
+NEM.DE,Nemetschek,DE,True,True
+HNR1.DE,Hannover Rück,DE,True,True
+AIR.DE,Airbus,EU,True,True
+MC.PA,LVMH,EU,True,True
+OR.PA,L'Oréal,EU,True,True
+SAN.PA,Sanofi,EU,True,True
+BNP.PA,BNP Paribas,EU,True,True
+ACA.PA,Crédit Agricole,EU,True,True
+SU.PA,Schneider Electric,EU,True,True
+DG.PA,Vinci,EU,True,True
+KER.PA,Kering,EU,True,True
+ASML.AS,ASML,EU,True,True
+INGA.AS,ING,EU,True,True
+AD.AS,Ahold Delhaize,EU,True,True
+ENEL.MI,Enel,EU,True,True
+ENI.MI,Eni,EU,True,True
+ISP.MI,Intesa,EU,True,True
+NESN.SW,Nestlé,EU,True,True
+NOVN.SW,Novartis,EU,True,True
+ROG.SW,Roche,EU,True,True
+ULVR.L,Unilever,EU,True,True
+SHEL.L,Shell,EU,True,True
+BP.L,BP,EU,True,True
+AZN.L,AstraZeneca,EU,True,True
+RIO.L,Rio Tinto,EU,True,True
+GLEN.L,Glencore,EU,True,True
+AAPL,Apple,US,True,True
+MSFT,Microsoft,US,True,True
+NVDA,Nvidia,US,True,True
+AMZN,Amazon,US,True,True
+META,Meta,US,True,True
+GOOGL,Alphabet,US,True,True
+TSLA,Tesla,US,True,True
+NFLX,Netflix,US,True,True
+AMD,AMD,US,True,True
+INTC,Intel,US,True,True
+AVGO,Broadcom,US,True,True
+QCOM,Qualcomm,US,True,True
+TXN,Texas Instruments,US,True,True
+MU,Micron,US,True,True
+LRCX,Lam Research,US,True,True
+KLAC,KLA Corp,US,True,True
+NXPI,NXP,US,True,True
+ADBE,Adobe,US,True,True
+CRM,Salesforce,US,True,True
+ORCL,Oracle,US,True,True
+CSCO,Cisco,US,True,True
+INTU,Intuit,US,True,True
+NOW,ServiceNow,US,True,True
+SNOW,Snowflake,US,True,True
+PLTR,Palantir,US,True,True
+CRWD,CrowdStrike,US,True,True
+ZS,Zscaler,US,True,True
+DDOG,Datadog,US,True,True
+NET,Cloudflare,US,True,True
+OKTA,Okta,US,True,True
+PANW,Palo Alto,US,True,True
+PYPL,PayPal,US,True,True
+SQ,Block,US,True,True
+SHOP,Shopify,US,True,True
+KO,Coca-Cola,US,True,True
+PEP,Pepsi,US,True,True
+PG,Procter Gamble,US,True,True
+WMT,Walmart,US,True,True
+COST,Costco,US,True,True
+MCD,McDonald's,US,True,True
+NKE,Nike,US,True,True
+BA,Boeing,US,True,True
+GE,GE Aerospace,US,True,True
+CAT,Caterpillar,US,True,True
+DE,Deere,US,True,True
+XOM,Exxon,US,True,True
+CVX,Chevron,US,True,True
+COP,ConocoPhillips,US,True,True
+SLB,Schlumberger,US,True,True
+JPM,JP Morgan,US,True,True
+BAC,Bank of America,US,True,True
+C,Citigroup,US,True,True
+GS,Goldman Sachs,US,True,True
+MS,Morgan Stanley,US,True,True
+UNH,UnitedHealth,US,True,True
+JNJ,Johnson & Johnson,US,True,True
+PFE,Pfizer,US,True,True
+MRK,Merck,US,True,True
+ABBV,AbbVie,US,True,True
+TMO,Thermo Fisher,US,True,True
+AMGN,Amgen,US,True,True
+GILD,Gilead,US,True,True
+VRTX,Vertex,US,True,True
+REGN,Regeneron,US,True,True
+
+# ===== ERWEITERUNG (zusätzliche liquid TR-Werte) =====
+UBER,Uber,US,True,True
+LYFT,Lyft,US,True,True
+ABNB,Airbnb,US,True,True
+BKNG,Booking,US,True,True
+DIS,Disney,US,True,True
+CMCSA,Comcast,US,True,True
+V, Visa,US,True,True
+MA,Mastercard,US,True,True
+AXP,American Express,US,True,True
+T,AT&T,US,True,True
+VZ,Verizon,US,True,True
+LOW,Lowes,US,True,True
+HD,Home Depot,US,True,True
+UPS,UPS,US,True,True
+FDX,FedEx,US,True,True
+DAL,Delta Airlines,US,True,True
+UAL,United Airlines,US,True,True
+LUV,Southwest Airlines,US,True,True
+F,Ford,US,True,True
+GM,General Motors,US,True,True
+RIVN,Rivian,US,True,True
+LCID,Lucid,US,True,True
+NIO,NIO,US,True,True
+XPEV,Xpeng,US,True,True
+BABA,Alibaba,US,True,True
+JD,JD.com,US,True,True
+PDD,Pinduoduo,US,True,True
+TCEHY,Tencent,US,True,True
+SONY,Sony,US,True,True
+SQM,SQM,US,True,True
+ALB,Albemarle,US,True,True
+FCX,Freeport McMoRan,US,True,True
+NUE,Nucor,US,True,True
+VALE,VALE,US,True,True
+RIO,Rio Tinto ADR,US,True,True

@@ -1,0 +1,38 @@
+[
+  {
+    "Vorschlags_ID": "20260421_214632",
+    "Zeitstempel": "2026-04-21 21:46:32",
+    "Bereich": "Kombiniert",
+    "Werte": {
+      "day_min_atr_rel": 4.2,
+      "day_min_range": 2.8,
+      "day_min_hitrate2": 68.21,
+      "day_min_crv": 1.5,
+      "day_min_potenzial": 9.1,
+      "swing_min_crv": 1.8,
+      "swing_min_potenzial": 21.0,
+      "swing_min_rsi": 56,
+      "swing_max_rsi": 72
+    },
+    "Datenbasis_Treffer": 218,
+    "Automatisch_Generiert": true
+  },
+  {
+    "Vorschlags_ID": "20260422_063416",
+    "Zeitstempel": "2026-04-22 06:34:16",
+    "Bereich": "Kombiniert",
+    "Werte": {
+      "day_min_atr_rel": 4.19,
+      "day_min_range": 2.8,
+      "day_min_hitrate2": 68.21,
+      "day_min_crv": 1.5,
+      "day_min_potenzial": 9.1,
+      "swing_min_crv": 1.8,
+      "swing_min_potenzial": 19.39,
+      "swing_min_rsi": 59,
+      "swing_max_rsi": 72
+    },
+    "Datenbasis_Treffer": 620,
+    "Automatisch_Generiert": true
+  }
+]

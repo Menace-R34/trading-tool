@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# macOS
+.DS_Store
+
+# Lokale Daten & Caches des Trading Tools
+data/cache_kurse/
+data/backups/
+data/prognosen_historie.csv
+data/prognosen_auswertung.csv
+data/prognosen_metadaten.json
+data/standardwerte_vorschlag.json
+
+# Exporte & Scratch
+exports/
+scratch/
