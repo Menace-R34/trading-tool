@@ -2,7 +2,6 @@
 # 01_IMPORTS
 # =========================================================
 import pandas as pd
-from modules import storage
 
 
 # =========================================================
@@ -34,9 +33,7 @@ def lade_universum_csv(dateipfad=STANDARD_DATEIPFAD):
     """
     Lädt das Universum aus einer CSV-Datei.
     """
-    df = storage.lese_tabelle("trade_republic_universum")
-    if df is None:
-        df = pd.read_csv(dateipfad)
+    df = pd.read_csv(dateipfad)
 
     fehlende_spalten = [sp for sp in BENOETIGTE_SPALTEN if sp not in df.columns]
     if fehlende_spalten:

@@ -3,7 +3,6 @@ services:
     build: .
     restart: unless-stopped
     environment:
-      TRADING_TOOL_STORAGE: "local"
       TRADING_TOOL_START_WORKER: "0"
     volumes:
       - ./data:/app/data
@@ -16,7 +15,6 @@ services:
     restart: unless-stopped
     command: ["python", "background_worker.py"]
     environment:
-      TRADING_TOOL_STORAGE: "local"
       TRADING_TOOL_START_WORKER: "1"
     volumes:
       - ./data:/app/data

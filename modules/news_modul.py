@@ -3,23 +3,13 @@
 # =========================================================
 import os
 import math
-import json
 from datetime import datetime, timedelta
 
 import requests
 
 
 # =========================================================
-# 02_OPTIONALE_OPENAI_ANBINDUNG
-# =========================================================
-try:
-    from openai import OpenAI
-except Exception:
-    OpenAI = None
-
-
-# =========================================================
-# 03_KONSTANTEN
+# 02_KONSTANTEN
 # =========================================================
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
 
@@ -229,62 +219,6 @@ def _regelbasierter_sektor_score(texte, sektor=None):
     }
 
 
-def _ki_bewertung_mit_openai(ticker, firmenname, sektor, texte):
-    if OpenAI is None:
-        return None
-
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
-    if not texte:
-        return None
-
-    prompt = f"""
-Du bewertest Nachrichten für Aktienhandel.
-
-Ticker: {ticker}
-Firmenname: {firmenname or "unbekannt"}
-Sektor: {sektor or "unbekannt"}
-
-Analysiere die folgenden Nachrichten:
-{chr(10).join(f"- {t}" for t in texte[:25])}
-
-Bewerte:
-1. unternehmensspezifischen Einfluss
-2. makroökonomischen Einfluss
-3. Einfluss des Weltgeschehens wie Krieg, Rohstoffknappheit, Lieferketten, Sanktionen, Zinsen
-4. wahrscheinliche kurzfristige Wirkung für Daytrading
-5. wahrscheinliche Wirkung für Swingtrading
-
-Antworte ausschließlich als JSON mit diesen Feldern:
-{{
-  "news_score_gesamt": Zahl von -1 bis 1,
-  "news_score_unternehmen": Zahl von -1 bis 1,
-  "news_score_makro": Zahl von -1 bis 1,
-  "label": "Stark Positiv|Positiv|Neutral|Negativ|Stark Negativ",
-  "treiber": ["..."],
-  "risiken": ["..."],
-  "kommentar_kurz": "...",
-  "bias_day": "Positiv|Neutral|Negativ",
-  "bias_swing": "Positiv|Neutral|Negativ"
-}}
-"""
-
-    try:
-        client = OpenAI(api_key=api_key)
-        response = client.responses.create(
-            model="gpt-5",
-            input=prompt
-        )
-
-        text = response.output_text.strip()
-        daten = json.loads(text)
-        return daten
-    except Exception:
-        return None
-
-
 def _label_aus_score(score):
     if score >= 0.6:
         return "Stark Positiv"
@@ -306,13 +240,11 @@ def berechne_news_score(
     sektor=None,
     manuelle_texte=None,
     nutze_newsapi=True,
-    nutze_openai=False,
 ):
     """
     News-Bewertung mit:
     - Unternehmens-News
     - Makro-/Weltgeschehen
-    - optionaler OpenAI-Klassifikation
     - regelbasiertem Fallback
     """
 
@@ -341,32 +273,6 @@ def berechne_news_score(
             "Risiken": "",
             "Bias Day": "Neutral",
             "Bias Swing": "Neutral",
-        }
-
-    if nutze_openai:
-        ki_resultat = _ki_bewertung_mit_openai(
-            ticker=ticker,
-            firmenname=firmenname,
-            sektor=sektor,
-            texte=alle_texte
-        )
-    else:
-        ki_resultat = None
-
-    if ki_resultat:
-        return {
-            "News-Score": round(float(ki_resultat.get("news_score_gesamt", 0.0)), 2),
-            "News-Score Unternehmen": round(float(ki_resultat.get("news_score_unternehmen", 0.0)), 2),
-            "News-Score Makro": round(float(ki_resultat.get("news_score_makro", 0.0)), 2),
-            "News-Label": str(ki_resultat.get("label", "Neutral")),
-            "News-Kommentar": str(ki_resultat.get("kommentar_kurz", "KI-Bewertung")),
-            "News-Quelle": "NewsAPI + OpenAI",
-            "News-Zeitpunkt": _zeitstempel(),
-            "News-Anzahl": len(alle_texte),
-            "Treiber": ", ".join(_sichere_liste(ki_resultat.get("treiber"))[:6]),
-            "Risiken": ", ".join(_sichere_liste(ki_resultat.get("risiken"))[:6]),
-            "Bias Day": str(ki_resultat.get("bias_day", "Neutral")),
-            "Bias Swing": str(ki_resultat.get("bias_swing", "Neutral")),
         }
 
     regel_resultat = _regelbasierter_sektor_score(alle_texte, sektor=sektor)

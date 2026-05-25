@@ -21,20 +21,9 @@ data/optimierungsvorschlaege_historie.json
 data/backups/
 ```
 
-Im Docker Compose ist `TRADING_TOOL_STORAGE=local` gesetzt. Es werden keine Google-Secrets benoetigt.
+Es werden keine externen Speicher-Secrets benoetigt.
 
-## 2. Daten aus Google Sheets einmalig uebernehmen
-
-Falls deine bisherigen Live-Daten noch in Google Sheets liegen, importiere sie einmalig auf dem Homeserver:
-
-```bash
-cd /opt/trading_tool
-python scripts/import_sheets_to_local.py
-```
-
-Dafuer muessen die alten Google-Secrets nur fuer diesen einen Import noch vorhanden sein. Danach kannst du sie vom Server, aus Streamlit und aus GitHub entfernen.
-
-## 3. Server starten
+## 2. Server starten
 
 ```bash
 cd /opt/trading_tool
@@ -49,7 +38,7 @@ docker compose logs -f web
 docker compose logs -f worker
 ```
 
-## 4. Entwicklungsablauf
+## 3. Entwicklungsablauf
 
 Lokal entwickeln:
 

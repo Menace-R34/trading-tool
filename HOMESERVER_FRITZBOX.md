@@ -13,7 +13,7 @@ Ziel:
 Alter Laptop
   -> Streamlit Web-App auf Port 8501
   -> Background Worker
-  -> lokale Daten oder optional Google Sheets
+  -> lokale Daten im Projektordner
 
 FritzBox
   -> feste lokale IP fuer den Laptop
@@ -163,18 +163,9 @@ Der Homeserver ist die Datenquelle. Die App und der Worker speichern lokal im Pr
 data/
 ```
 
-Setze oder belasse:
-
-```text
-TRADING_TOOL_STORAGE=local
-```
-
-Wenn bisher Daten in Google Sheets lagen, einmalig mit `python scripts/import_sheets_to_local.py` importieren und danach die Google-Secrets entfernen.
-
 ## 9. Wichtige Sicherheitsregeln
 
 - Keine Portfreigabe direkt auf `8501`.
 - Zugriff von unterwegs nur ueber VPN.
 - Laptop regelmaessig aktualisieren.
 - Backups der Daten regelmaessig erstellen.
-- Keine Google-Service-Account-JSON-Dateien mehr auf dem Homeserver behalten, nachdem der Import abgeschlossen ist.

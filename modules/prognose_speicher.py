@@ -7,7 +7,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import pandas as pd
 import shutil
-from modules import storage
 
 # =========================================================
 # 02_KONSTANTEN
@@ -23,12 +22,6 @@ DATEI_STANDARDWERTE = DATA_ORDNER / "standardwerte_vorschlag.json"
 # 03_STANDARDWERTE (Laden & Speichern)
 # =========================================================
 def lade_gespeicherte_standardwerte(dateipfad=DATEI_STANDARDWERTE):
-    logical_name = storage.logical_name_from_path(dateipfad)
-    if logical_name:
-        daten = storage.lese_json(logical_name, default=None)
-        if isinstance(daten, dict):
-            return daten
-
     if not Path(dateipfad).exists():
         return {}
     try:
@@ -42,9 +35,6 @@ def lade_gespeicherte_standardwerte(dateipfad=DATEI_STANDARDWERTE):
 def speichere_standardwerte(standardwerte, dateipfad=DATEI_STANDARDWERTE):
     if not isinstance(standardwerte, dict):
         return False
-    logical_name = storage.logical_name_from_path(dateipfad)
-    if logical_name and storage.schreibe_json(logical_name, standardwerte):
-        return True
 
     DATA_ORDNER.mkdir(parents=True, exist_ok=True)
     try:
@@ -78,23 +68,12 @@ def _zeitstempel_str():
     return _jetzt_berlin().strftime("%Y-%m-%d %H:%M:%S")
 
 def _lese_csv_sicher(dateipfad):
-    logical_name = storage.logical_name_from_path(dateipfad)
-    if logical_name:
-        df_storage = storage.lese_tabelle(logical_name)
-        if df_storage is not None:
-            df = df_storage
-        else:
-            df = None
-    else:
-        df = None
-
-    if df is None:
-        if not Path(dateipfad).exists():
-            return pd.DataFrame()
-        try:
-            df = pd.read_csv(dateipfad)
-        except Exception:
-            return pd.DataFrame()
+    if not Path(dateipfad).exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_csv(dateipfad)
+    except Exception:
+        return pd.DataFrame()
 
     try:
         # --- MIGRATION: Alle möglichen Varianten auf technischen Standard normalisieren ---
@@ -133,10 +112,6 @@ def _lese_csv_sicher(dateipfad):
         return pd.DataFrame()
 
 def _schreibe_csv(df, dateipfad):
-    logical_name = storage.logical_name_from_path(dateipfad)
-    if logical_name and storage.schreibe_tabelle(logical_name, df):
-        return
-
     _stelle_data_ordner_sicher()
     df.to_csv(dateipfad, index=False)
 
@@ -216,13 +191,6 @@ def speichere_prognosen(df_signale, settings=None, dateiname=DATEI_PROGNOSEN):
 # =========================================================
 def _erstelle_backup(dateipfad):
     """Erstellt ein Backup der CSV im Backup-Ordner."""
-    logical_name = storage.logical_name_from_path(dateipfad)
-    if logical_name and storage.nutzt_google_sheets():
-        zeitstempel = _jetzt_berlin().strftime("%Y%m%d_%H%M%S")
-        ziel_name = f"backup_{zeitstempel}_{storage.tabellen_name(logical_name)}"
-        storage.kopiere_tabelle(logical_name, ziel_name)
-        return ziel_name
-
     if not Path(dateipfad).exists():
         return None
     _stelle_data_ordner_sicher()
@@ -306,10 +274,8 @@ def protokolliere_fixierung(region):
     import json
     _stelle_data_ordner_sicher()
     
-    meta = storage.lese_json("prognosen_metadaten", default=None)
-    if not isinstance(meta, dict):
-        meta = {}
-    if not meta and DATEI_METADATEN.exists():
+    meta = {}
+    if DATEI_METADATEN.exists():
         try:
             with open(DATEI_METADATEN, "r") as f:
                 meta = json.load(f)
@@ -327,9 +293,8 @@ def protokolliere_fixierung(region):
         
     meta["fixierungen"][heute][region] = uhrzeit
     
-    if not storage.schreibe_json("prognosen_metadaten", meta):
-        with open(DATEI_METADATEN, "w") as f:
-            json.dump(meta, f, indent=2)
+    with open(DATEI_METADATEN, "w") as f:
+        json.dump(meta, f, indent=2)
 
 def hole_fixierungs_status(region=None):
     """
@@ -337,15 +302,13 @@ def hole_fixierungs_status(region=None):
     Falls region=None, wird das gesamte Dictionary für heute zurückgegeben.
     """
     import json
-    meta = storage.lese_json("prognosen_metadaten", default=None)
-    if not isinstance(meta, dict):
-        if not DATEI_METADATEN.exists():
-            return None
-        try:
-            with open(DATEI_METADATEN, "r") as f:
-                meta = json.load(f)
-        except:
-            return None
+    if not DATEI_METADATEN.exists():
+        return None
+    try:
+        with open(DATEI_METADATEN, "r") as f:
+            meta = json.load(f)
+    except:
+        return None
         
     heute = _heute_str()
     fix_heute = meta.get("fixierungen", {}).get(heute, {})
@@ -359,31 +322,6 @@ def hole_fixierungs_status(region=None):
 # =========================================================
 def liste_backups_auf():
     """Listet Backups auf, gruppiert nach Zeitstempel."""
-    if storage.nutzt_google_sheets():
-        tabellen = storage.liste_tabellen(prefix="backup_")
-        gruppen = {}
-        for titel in tabellen:
-            teile = titel.split("_", 3)
-            if len(teile) < 4:
-                continue
-            ts = f"{teile[1]}_{teile[2]}"
-            if ts not in gruppen:
-                try:
-                    datum_formatiert = datetime.strptime(ts, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    datum_formatiert = ts
-                gruppen[ts] = {"dateien": [], "datum_formatiert": datum_formatiert}
-            gruppen[ts]["dateien"].append(titel)
-
-        return sorted([
-            {
-                "zeitstempel": ts,
-                "anzeige_name": f"Sheet-Backup vom {info['datum_formatiert']} ({len(info['dateien'])} Tabs)",
-                "dateien": info["dateien"],
-            }
-            for ts, info in gruppen.items()
-        ], key=lambda x: x["zeitstempel"], reverse=True)
-
     if not BACKUP_ORDNER.exists():
         return []
     
@@ -425,16 +363,6 @@ def loesche_alte_backups(max_gruppen=20):
     fehler = []
     alte_backups = backups[max_gruppen:]
 
-    if storage.nutzt_google_sheets():
-        for backup in alte_backups:
-            for tabellen_name in backup.get("dateien", []):
-                try:
-                    if storage.loesche_tabelle(tabellen_name):
-                        geloescht += 1
-                except Exception as e:
-                    fehler.append(f"{tabellen_name}: {str(e)}")
-        return {"geloescht": geloescht, "behalten": max_gruppen, "fehler": fehler}
-
     for backup in alte_backups:
         for dateiname in backup.get("dateien", []):
             try:
@@ -449,45 +377,6 @@ def loesche_alte_backups(max_gruppen=20):
 
 def stelle_backup_wieder_her(zeitstempel):
     """Stellt alle Dateien eines Zeitstempels wieder her."""
-    if storage.nutzt_google_sheets():
-        tabellen = storage.liste_tabellen(prefix=f"backup_{zeitstempel}_")
-        if not tabellen:
-            return False, f"Keine Sheet-Backups für Zeitstempel {zeitstempel} gefunden."
-
-        erfolge = []
-        fehler = []
-        ziel_map = {
-            "prognosen_historie": "prognosen_historie",
-            "prognosen_auswertung": "prognosen_auswertung",
-        }
-
-        for backup_name in tabellen:
-            ziel_logical_name = None
-            for tab_name, logical_name in ziel_map.items():
-                if backup_name.endswith(f"_{tab_name}"):
-                    ziel_logical_name = logical_name
-                    break
-
-            if not ziel_logical_name:
-                continue
-
-            try:
-                # Sicherheits-Backup des aktuellen Online-Stands vor der Wiederherstellung.
-                _erstelle_backup(
-                    DATEI_PROGNOSEN if ziel_logical_name == "prognosen_historie" else DATEI_AUSWERTUNG
-                )
-                df_backup = storage.lese_tabelle(backup_name)
-                storage.schreibe_tabelle(ziel_logical_name, df_backup)
-                erfolge.append(storage.tabellen_name(ziel_logical_name))
-            except Exception as e:
-                fehler.append(f"{backup_name}: {str(e)}")
-
-        if fehler:
-            return False, "; ".join(fehler)
-        if not erfolge:
-            return False, f"Keine wiederherstellbaren Tabellen für {zeitstempel} gefunden."
-        return True, f"Erfolgreich wiederhergestellt: {', '.join(erfolge)}"
-
     if not BACKUP_ORDNER.exists():
         return False, "Backup-Ordner nicht gefunden."
     

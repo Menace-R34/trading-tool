@@ -17,7 +17,7 @@ Das Projekt hat zwei laufende Prozesse:
 
 Der Hintergrundsammler prueft jede Minute die Automatik. Wenn `auto_fix_aktiv` aktiv ist, fixiert er Europa und USA nach den gespeicherten Zeiten und schreibt die Daten auf dem Homeserver nach `data/`.
 
-In der Web-App kann der integrierte Hintergrundthread mit `TRADING_TOOL_START_WORKER=0` deaktiviert werden. Die Dienstvorlagen machen das bereits, damit Web-App und separater Worker nicht doppelt sammeln. Das Speicherbackend ist im Docker-Setup fest auf `TRADING_TOOL_STORAGE=local` gesetzt.
+In der Web-App kann der integrierte Hintergrundthread mit `TRADING_TOOL_START_WORKER=0` deaktiviert werden. Die Dienstvorlagen machen das bereits, damit Web-App und separater Worker nicht doppelt sammeln.
 
 ## Empfohlene Architektur
 
@@ -36,7 +36,6 @@ Server / Live-Version
   -> Background Worker per Docker
   -> persistenter data/-Ordner
   -> HTTPS + Passwortschutz vor der Web-App
-  -> keine Google-Sheets-Speicherung
 ```
 
 Der wichtigste Grundsatz: Code und Daten getrennt behandeln. Code liegt in GitHub. `data/` ist der Zustand des Live-Systems und bleibt auf dem Server.
@@ -215,29 +214,6 @@ docker compose up -d --build
 ```
 
 Dabei bleibt `data/` erhalten, weil es als lokaler Server-Ordner in die Container eingebunden ist.
-
-## Google Sheets abloesen
-
-Wenn die Live-Daten noch in Google Sheets liegen, einmalig auf dem Homeserver importieren, solange die bisherigen Google-Secrets dort noch vorhanden sind:
-
-```bash
-cd /opt/trading_tool
-python scripts/import_sheets_to_local.py
-```
-
-Danach pruefen:
-
-```bash
-ls -lah data
-```
-
-Anschliessend Google-Secrets vom Server, aus Streamlit-Secrets und aus GitHub-Secrets entfernen. Fuer den normalen Homeserver-Betrieb reicht:
-
-```text
-TRADING_TOOL_STORAGE=local
-```
-
-Die GitHub Actions sind nicht mehr zeitgesteuert aktiv. Der Homeserver-Worker sammelt und bewertet lokal.
 
 ## Wichtig beim Umzug
 

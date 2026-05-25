@@ -6,7 +6,6 @@ import pandas as pd
 from pathlib import Path
 
 from modules.prognose_speicher import _lese_csv_sicher, _zeitstempel_str, DATA_ORDNER, DATEI_AUSWERTUNG
-from modules import storage
 
 # =========================================================
 # 02_KONSTANTEN
@@ -17,10 +16,6 @@ DATEI_VORSCHLAEGE_HISTORIE = DATA_ORDNER / "optimierungsvorschlaege_historie.jso
 # 03_VORSCHLAEGE HISTORIE LADEN / SPEICHERN
 # =========================================================
 def lade_vorschlaege_historie():
-    daten = storage.lese_json("optimierungsvorschlaege_historie", default=None)
-    if isinstance(daten, list):
-        return daten
-
     if not Path(DATEI_VORSCHLAEGE_HISTORIE).exists():
         return []
     try:
@@ -30,8 +25,6 @@ def lade_vorschlaege_historie():
         return []
 
 def _speichere_vorschlaege_historie(historie):
-    if storage.schreibe_json("optimierungsvorschlaege_historie", historie):
-        return
     DATA_ORDNER.mkdir(parents=True, exist_ok=True)
     with open(DATEI_VORSCHLAEGE_HISTORIE, "w", encoding="utf-8") as f:
         json.dump(historie, f, ensure_ascii=False, indent=2)

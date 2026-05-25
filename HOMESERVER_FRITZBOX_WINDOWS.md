@@ -47,14 +47,6 @@ Der Homeserver bzw. Windows-Rechner ist die Datenquelle:
 
 Fuer lokale Daten brauchst du die bestehenden `data/`-Dateien auf dem Rechner.
 
-Setze oder belasse:
-
-```toml
-TRADING_TOOL_STORAGE = "local"
-```
-
-Wenn bisher Daten in Google Sheets lagen, einmalig mit `python scripts/import_sheets_to_local.py` importieren und danach die Google-Secrets entfernen.
-
 ## 3. Feste IP in der FritzBox vergeben
 
 In der FritzBox:
@@ -184,7 +176,6 @@ http://192.168.178.50:8501
 - Windows Updates regelmaessig installieren.
 - Laptop am Strom lassen.
 - Regelmaessige Backups einplanen.
-- Service-Account-JSON-Dateien nicht offen im Editor lassen.
 
 ## 11. Updates per VPN vom Mac anstossen
 
