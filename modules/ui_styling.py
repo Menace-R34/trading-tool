@@ -1,6 +1,9 @@
 # =========================================================
 # 01_STYLING_HILFSFUNKTIONEN
 # =========================================================
+import pandas as pd
+
+
 def style_ja_nein_zelle(wert):
     text = str(wert).strip().upper()
 
@@ -132,6 +135,10 @@ def baue_styler(df):
     # NaN-Werte in den zu formatierenden Spalten abfangen
     for col in format_dict.keys():
         if col in anzeige_df.columns:
+            anzeige_df[col] = pd.to_numeric(
+                anzeige_df[col].astype(str).str.replace(",", ".", regex=False),
+                errors="coerce",
+            )
             # Für Ganzzahlen 0, für Floats 0.0
             fill_val = 0 if format_dict[col] == "{:d}" else 0.0
             anzeige_df[col] = anzeige_df[col].fillna(fill_val)

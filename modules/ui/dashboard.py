@@ -18,6 +18,19 @@ from modules.prognose_speicher import (
 from modules.markt_lage import berechne_marktlage
 from modules.ui.common import _prepare_df
 
+
+def _sortiere_numerisch(df, spalte, ascending=False):
+    if spalte not in df.columns:
+        return df
+    return (
+        df.assign(_sort_key=pd.to_numeric(
+            df[spalte].astype(str).str.replace(",", ".", regex=False),
+            errors="coerce",
+        ).fillna(0.0))
+        .sort_values("_sort_key", ascending=ascending)
+        .drop(columns=["_sort_key"])
+    )
+
 def seite_start():
     st.subheader("Hauptübersicht")
     st.write("Zentrale Übersicht zu Markt, Signalen und Prognosegüte.")
@@ -129,7 +142,7 @@ def _zeige_top_liste(df_region, markt, region):
         else:
             day_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Day Kauf", "Day Score", "Day CRV", "Day Netto €", "Hist. Idealer Hold (Day)"]
             day_cols = [c for c in day_cols if c in df_day.columns]
-            st.dataframe(baue_styler(df_day[day_cols].sort_values("Day Score", ascending=False).head(5)), use_container_width=True, hide_index=True)
+            st.dataframe(baue_styler(_sortiere_numerisch(df_day[day_cols], "Day Score").head(5)), use_container_width=True, hide_index=True)
             
     with col2:
         st.markdown(f"#### 📈 Swingtrading {region}")
@@ -138,4 +151,4 @@ def _zeige_top_liste(df_region, markt, region):
         else:
             swing_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Swing Kauf", "Swing Score", "Swing CRV", "Swing Netto €", "Saison-Score", "Hist. Idealer Hold (Swing)"]
             swing_cols = [c for c in swing_cols if c in df_swing.columns]
-            st.dataframe(baue_styler(df_swing[swing_cols].sort_values("Swing Score", ascending=False).head(5)), use_container_width=True, hide_index=True)
+            st.dataframe(baue_styler(_sortiere_numerisch(df_swing[swing_cols], "Swing Score").head(5)), use_container_width=True, hide_index=True)
