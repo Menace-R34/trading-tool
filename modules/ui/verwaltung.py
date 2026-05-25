@@ -131,8 +131,12 @@ def seite_einstellungen():
                 opt = {b["anzeige_name"]: b["zeitstempel"] for b in backups}
                 sel = st.selectbox("Snapshot laden", list(opt.keys()))
                 if st.button("Wiederherstellen"):
-                    stelle_backup_wieder_her(opt[sel])
-                    st.rerun()
+                    ok, meldung = stelle_backup_wieder_her(opt[sel])
+                    if ok:
+                        st.success(meldung)
+                        st.rerun()
+                    else:
+                        st.error(meldung)
 
             st.divider()
             st.markdown("**🗑️ Daten bereinigen**")

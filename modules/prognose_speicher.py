@@ -216,6 +216,13 @@ def speichere_prognosen(df_signale, settings=None, dateiname=DATEI_PROGNOSEN):
 # =========================================================
 def _erstelle_backup(dateipfad):
     """Erstellt ein Backup der CSV im Backup-Ordner."""
+    logical_name = storage.logical_name_from_path(dateipfad)
+    if logical_name and storage.nutzt_google_sheets():
+        zeitstempel = _jetzt_berlin().strftime("%Y%m%d_%H%M%S")
+        ziel_name = f"backup_{zeitstempel}_{storage.tabellen_name(logical_name)}"
+        storage.kopiere_tabelle(logical_name, ziel_name)
+        return ziel_name
+
     if not Path(dateipfad).exists():
         return None
     _stelle_data_ordner_sicher()
@@ -242,10 +249,11 @@ def loesche_historische_daten(von_datum, bis_datum):
         if df.empty or "Prognose-Datum" not in df.columns:
             continue
 
-        # Backup
+        # Backup muss vor dem Löschen erfolgreich erstellt werden.
         backup_pfad = _erstelle_backup(dateipfad)
-        if backup_pfad:
-            backups_erstellt.append(str(backup_pfad))
+        if not backup_pfad:
+            continue
+        backups_erstellt.append(str(backup_pfad))
 
         # Löschen
         mask = (df["Prognose-Datum"] >= von_dt) & (df["Prognose-Datum"] <= bis_dt)
@@ -351,6 +359,31 @@ def hole_fixierungs_status(region=None):
 # =========================================================
 def liste_backups_auf():
     """Listet Backups auf, gruppiert nach Zeitstempel."""
+    if storage.nutzt_google_sheets():
+        tabellen = storage.liste_tabellen(prefix="backup_")
+        gruppen = {}
+        for titel in tabellen:
+            teile = titel.split("_", 3)
+            if len(teile) < 4:
+                continue
+            ts = f"{teile[1]}_{teile[2]}"
+            if ts not in gruppen:
+                try:
+                    datum_formatiert = datetime.strptime(ts, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    datum_formatiert = ts
+                gruppen[ts] = {"dateien": [], "datum_formatiert": datum_formatiert}
+            gruppen[ts]["dateien"].append(titel)
+
+        return sorted([
+            {
+                "zeitstempel": ts,
+                "anzeige_name": f"Sheet-Backup vom {info['datum_formatiert']} ({len(info['dateien'])} Tabs)",
+                "dateien": info["dateien"],
+            }
+            for ts, info in gruppen.items()
+        ], key=lambda x: x["zeitstempel"], reverse=True)
+
     if not BACKUP_ORDNER.exists():
         return []
     
@@ -384,6 +417,45 @@ def liste_backups_auf():
 
 def stelle_backup_wieder_her(zeitstempel):
     """Stellt alle Dateien eines Zeitstempels wieder her."""
+    if storage.nutzt_google_sheets():
+        tabellen = storage.liste_tabellen(prefix=f"backup_{zeitstempel}_")
+        if not tabellen:
+            return False, f"Keine Sheet-Backups für Zeitstempel {zeitstempel} gefunden."
+
+        erfolge = []
+        fehler = []
+        ziel_map = {
+            "prognosen_historie": "prognosen_historie",
+            "prognosen_auswertung": "prognosen_auswertung",
+        }
+
+        for backup_name in tabellen:
+            ziel_logical_name = None
+            for tab_name, logical_name in ziel_map.items():
+                if backup_name.endswith(f"_{tab_name}"):
+                    ziel_logical_name = logical_name
+                    break
+
+            if not ziel_logical_name:
+                continue
+
+            try:
+                # Sicherheits-Backup des aktuellen Online-Stands vor der Wiederherstellung.
+                _erstelle_backup(
+                    DATEI_PROGNOSEN if ziel_logical_name == "prognosen_historie" else DATEI_AUSWERTUNG
+                )
+                df_backup = storage.lese_tabelle(backup_name)
+                storage.schreibe_tabelle(ziel_logical_name, df_backup)
+                erfolge.append(storage.tabellen_name(ziel_logical_name))
+            except Exception as e:
+                fehler.append(f"{backup_name}: {str(e)}")
+
+        if fehler:
+            return False, "; ".join(fehler)
+        if not erfolge:
+            return False, f"Keine wiederherstellbaren Tabellen für {zeitstempel} gefunden."
+        return True, f"Erfolgreich wiederhergestellt: {', '.join(erfolge)}"
+
     if not BACKUP_ORDNER.exists():
         return False, "Backup-Ordner nicht gefunden."
     

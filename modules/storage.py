@@ -63,6 +63,28 @@ def schreibe_tabelle(logical_name, df):
     return True
 
 
+def kopiere_tabelle(logical_name, ziel_name):
+    if not nutzt_google_sheets():
+        return False
+    df = lese_tabelle(logical_name)
+    schreibe_tabelle(ziel_name, df if df is not None else pd.DataFrame())
+    return True
+
+
+def liste_tabellen(prefix=None):
+    if not nutzt_google_sheets():
+        return []
+    spreadsheet = _spreadsheet()
+    titel = [worksheet.title for worksheet in spreadsheet.worksheets()]
+    if prefix:
+        titel = [name for name in titel if name.startswith(prefix)]
+    return titel
+
+
+def tabellen_name(logical_name):
+    return SHEET_NAMES.get(logical_name, logical_name)
+
+
 def lese_json(logical_name, default=None):
     if not nutzt_google_sheets():
         return default
@@ -124,18 +146,21 @@ def _cache_set(cache, key, value):
 
 
 def _worksheet(logical_name):
-    client = _gspread_client()
-    spreadsheet_id = _secret("GOOGLE_SHEETS_SPREADSHEET_ID")
-    if not spreadsheet_id:
-        raise RuntimeError("GOOGLE_SHEETS_SPREADSHEET_ID fehlt.")
-
-    spreadsheet = client.open_by_key(spreadsheet_id)
-    title = SHEET_NAMES.get(logical_name, logical_name)
+    spreadsheet = _spreadsheet()
+    title = tabellen_name(logical_name)
 
     try:
         return spreadsheet.worksheet(title)
     except Exception:
         return spreadsheet.add_worksheet(title=title, rows=1000, cols=50)
+
+
+def _spreadsheet():
+    client = _gspread_client()
+    spreadsheet_id = _secret("GOOGLE_SHEETS_SPREADSHEET_ID")
+    if not spreadsheet_id:
+        raise RuntimeError("GOOGLE_SHEETS_SPREADSHEET_ID fehlt.")
+    return client.open_by_key(spreadsheet_id)
 
 
 def _records(ws):
