@@ -227,16 +227,54 @@ def berechne_trefferstatistik(datei_auswertung=DATEI_AUSWERTUNG):
     if df.empty:
         return {"Day Trefferquote %": 0.0, "Day Anzahl": 0, "Swing Trefferquote %": 0.0, "Swing Anzahl": 0}
 
-    day_basis = df[df["Day Treffer"].notna()].copy() if "Day Treffer" in df.columns else pd.DataFrame()
-    swing_basis = df[df["Swing Treffer"].notna()].copy() if "Swing Treffer" in df.columns else pd.DataFrame()
+    day_treffer = _zu_bool_serie(df["Day Treffer"]) if "Day Treffer" in df.columns else pd.Series(dtype="float64")
+    swing_treffer = _zu_bool_serie(df["Swing Treffer"]) if "Swing Treffer" in df.columns else pd.Series(dtype="float64")
 
-    day_quote = day_basis["Day Treffer"].mean() * 100 if not day_basis.empty else 0.0
-    swing_quote = swing_basis["Swing Treffer"].mean() * 100 if not swing_basis.empty else 0.0
+    day_basis = day_treffer.dropna()
+    swing_basis = swing_treffer.dropna()
+
+    day_quote = day_basis.mean() * 100 if not day_basis.empty else 0.0
+    swing_quote = swing_basis.mean() * 100 if not swing_basis.empty else 0.0
 
     return {
         "Day Trefferquote %": round(day_quote, 2), "Day Anzahl": int(len(day_basis)),
         "Swing Trefferquote %": round(swing_quote, 2), "Swing Anzahl": int(len(swing_basis)),
     }
+
+def _zu_bool_serie(serie):
+    if serie is None:
+        return pd.Series(dtype="float64")
+
+    def konvertiere(wert):
+        if pd.isna(wert):
+            return pd.NA
+        if isinstance(wert, bool):
+            return 1.0 if wert else 0.0
+        if isinstance(wert, (int, float)):
+            return 1.0 if float(wert) != 0.0 else 0.0
+
+        text = str(wert).strip().lower()
+        if text in {"", "nan", "none", "null", "<na>"}:
+            return pd.NA
+        if text in {"true", "wahr", "ja", "yes", "y", "1", "1.0", "x"}:
+            return 1.0
+        if text in {"false", "falsch", "nein", "no", "n", "0", "0.0"}:
+            return 0.0
+
+        zahl = pd.to_numeric(text.replace(",", "."), errors="coerce")
+        if pd.isna(zahl):
+            return pd.NA
+        return 1.0 if float(zahl) != 0.0 else 0.0
+
+    return serie.apply(konvertiere).astype("Float64")
+
+def _zu_numeric_serie(serie):
+    if serie is None:
+        return pd.Series(dtype="float64")
+    return pd.to_numeric(
+        serie.astype(str).str.replace(",", ".", regex=False),
+        errors="coerce",
+    )
 
 def berechne_ticker_genauigkeit(datei_auswertung=DATEI_AUSWERTUNG):
     """
@@ -254,11 +292,11 @@ def berechne_ticker_genauigkeit(datei_auswertung=DATEI_AUSWERTUNG):
     for ticker in tickers:
         df_t = df[df["Ticker"] == ticker]
         
-        day_treffer_serie = df_t["Day Treffer"].dropna()
-        swing_treffer_serie = df_t["Swing Treffer"].dropna()
+        day_treffer_serie = _zu_bool_serie(df_t["Day Treffer"]).dropna()
+        swing_treffer_serie = _zu_bool_serie(df_t["Swing Treffer"]).dropna()
         
-        day_rendite = df_t["Day Rendite %"].dropna()
-        swing_rendite = df_t["Swing Rendite %"].dropna()
+        day_rendite = _zu_numeric_serie(df_t["Day Rendite %"]).dropna()
+        swing_rendite = _zu_numeric_serie(df_t["Swing Rendite %"]).dropna()
 
         alle_treffer = list(day_treffer_serie) + list(swing_treffer_serie)
         alle_renditen = list(day_rendite) + list(swing_rendite)
