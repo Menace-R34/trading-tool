@@ -39,22 +39,21 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 Dann PowerShell neu oeffnen und erneut aktivieren.
 
-## 2. Daten/Speicher entscheiden
+## 2. Daten/Speicher
 
-Kurzfristig:
+Der Homeserver bzw. Windows-Rechner ist die Datenquelle:
 
-- `local`: Daten liegen lokal auf dem Windows-Laptop.
-- `google_sheets`: Daten bleiben weiter in Google Sheets.
+- `local`: Daten liegen im lokalen `data/`-Ordner.
 
-Fuer lokale Daten brauchst du die bestehenden `data/`-Dateien auf dem Laptop.
+Fuer lokale Daten brauchst du die bestehenden `data/`-Dateien auf dem Rechner.
 
-Fuer Google Sheets brauchst du lokal eine `.streamlit/secrets.toml` mit:
+Setze oder belasse:
 
 ```toml
-TRADING_TOOL_STORAGE = "google_sheets"
-GOOGLE_SHEETS_SPREADSHEET_ID = "..."
-GOOGLE_SERVICE_ACCOUNT_JSON = '''...'''
+TRADING_TOOL_STORAGE = "local"
 ```
+
+Wenn bisher Daten in Google Sheets lagen, einmalig mit `python scripts/import_sheets_to_local.py` importieren und danach die Google-Secrets entfernen.
 
 ## 3. Feste IP in der FritzBox vergeben
 
@@ -121,7 +120,14 @@ Der Worker prueft regelmaessig, ob Europa oder USA fixiert werden muss.
 
 ## 7. Autostart unter Windows 10
 
-Einfachster Weg:
+Einfachster Weg im Windows-Benutzer, der die App betreiben soll:
+
+```powershell
+cd $env:USERPROFILE\Documents\trading_tool
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup_windows_autostart.ps1
+```
+
+Alternativ manuell:
 
 1. `Win + R`
 2. Eingeben:
@@ -179,3 +185,56 @@ http://192.168.178.50:8501
 - Laptop am Strom lassen.
 - Regelmaessige Backups einplanen.
 - Service-Account-JSON-Dateien nicht offen im Editor lassen.
+
+## 11. Updates per VPN vom Mac anstossen
+
+Wenn der Windows-10-Homeserver per VPN und SSH erreichbar ist, kannst du Updates vom Mac aus starten.
+
+Einmalig auf dem Mac setzen:
+
+```bash
+export TRADING_TOOL_SERVER="dein-user@192.168.178.50"
+export TRADING_TOOL_SERVER_OS="windows"
+```
+
+Nach lokalen Code-Aenderungen:
+
+```bash
+git add .
+git commit -m "Beschreibung der Aenderung"
+git push
+scripts/deploy_via_vpn.sh
+```
+
+Das Skript fuehrt auf Windows `git pull --ff-only` aus und installiert bei Bedarf die Python-Abhaengigkeiten aus `requirements.txt`.
+
+Standardpfad auf Windows ist:
+
+```text
+%USERPROFILE%\Documents\trading_tool
+```
+
+Falls dein Projekt woanders liegt:
+
+```bash
+export TRADING_TOOL_SERVER_PATH="Documents\anderer_ordner"
+```
+
+Die Streamlit-Web-App erkennt Code-Aenderungen normalerweise selbst. Wenn du den Hintergrundsammler-Code aenderst, starte den Worker einmal neu.
+
+## 12. Update-Button auf dem Windows-Desktop
+
+Im Benutzer `tradingserver` ausfuehren:
+
+```powershell
+cd $env:USERPROFILE\Documents\trading_tool
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup_windows_update_button.ps1
+```
+
+Danach liegt auf dem Desktop:
+
+```text
+Trading Tool aktualisieren
+```
+
+Ein Doppelklick zieht die neueste Version von GitHub und aktualisiert die Python-Abhaengigkeiten. Die Streamlit-Web-App erkennt Code-Aenderungen normalerweise selbst. Wenn der Worker-Code geaendert wurde, den Worker einmal neu starten.

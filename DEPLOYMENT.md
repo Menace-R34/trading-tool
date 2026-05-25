@@ -15,9 +15,9 @@ Das Projekt hat zwei laufende Prozesse:
 - Web-Oberflaeche: `streamlit run app.py`
 - Hintergrundsammler: `python background_worker.py`
 
-Der Hintergrundsammler prueft jede Minute die Automatik. Wenn `auto_fix_aktiv` aktiv ist, fixiert er Europa und USA nach den gespeicherten Zeiten und schreibt die Daten nach `data/`.
+Der Hintergrundsammler prueft jede Minute die Automatik. Wenn `auto_fix_aktiv` aktiv ist, fixiert er Europa und USA nach den gespeicherten Zeiten und schreibt die Daten auf dem Homeserver nach `data/`.
 
-In der Web-App kann der integrierte Hintergrundthread mit `TRADING_TOOL_START_WORKER=0` deaktiviert werden. Die Dienstvorlagen machen das bereits, damit Web-App und separater Worker nicht doppelt sammeln.
+In der Web-App kann der integrierte Hintergrundthread mit `TRADING_TOOL_START_WORKER=0` deaktiviert werden. Die Dienstvorlagen machen das bereits, damit Web-App und separater Worker nicht doppelt sammeln. Das Speicherbackend ist im Docker-Setup fest auf `TRADING_TOOL_STORAGE=local` gesetzt.
 
 ## Empfohlene Architektur
 
@@ -36,6 +36,7 @@ Server / Live-Version
   -> Background Worker per Docker
   -> persistenter data/-Ordner
   -> HTTPS + Passwortschutz vor der Web-App
+  -> keine Google-Sheets-Speicherung
 ```
 
 Der wichtigste Grundsatz: Code und Daten getrennt behandeln. Code liegt in GitHub. `data/` ist der Zustand des Live-Systems und bleibt auf dem Server.
@@ -60,6 +61,60 @@ docker compose up -d --build
 ```
 
 Damit wird nur der Code aktualisiert. Die Daten bleiben erhalten, weil `docker-compose.yml` den lokalen Ordner `./data` in die Container einbindet.
+
+Wenn du nicht jedes Mal auf den Server moechtest, kann der Homeserver sich selbst aktualisieren. Dafuer einmalig auf dem Server einrichten:
+
+```bash
+cd /opt/trading_tool
+chmod +x scripts/homeserver_auto_update.sh
+crontab -e
+```
+
+Diese Zeile eintragen:
+
+```cron
+*/5 * * * * cd /opt/trading_tool && bash scripts/homeserver_auto_update.sh >> logs/auto_update.log 2>&1
+```
+
+Danach reicht lokal normalerweise:
+
+```bash
+git add .
+git commit -m "Beschreibung der Aenderung"
+git push
+```
+
+Der Homeserver zieht die neue Version dann innerhalb von bis zu fuenf Minuten selbst und startet Docker Compose neu, wenn sich Code geaendert hat.
+
+Wenn der Homeserver per VPN erreichbar ist, kannst du das Update auch direkt von deinem Mac aus anstossen. Fuer Windows 10 einmalig lokal setzen:
+
+```bash
+export TRADING_TOOL_SERVER="dein-user@192.168.178.50"
+export TRADING_TOOL_SERVER_OS="windows"
+```
+
+Nach einem Commit und Push:
+
+```bash
+scripts/deploy_via_vpn.sh
+```
+
+Standardpfad auf Windows ist `%USERPROFILE%\Documents\trading_tool`. Falls dein Projekt woanders liegt:
+
+```bash
+export TRADING_TOOL_SERVER_PATH="Documents\anderer_ordner"
+```
+
+Das Skript fuehrt auf Windows `git pull --ff-only` aus und installiert geaenderte Python-Abhaengigkeiten. Die Streamlit-Web-App erkennt Code-Aenderungen normalerweise selbst. Wenn du den Hintergrundsammler-Code aenderst, starte den Worker einmal neu.
+
+Auf dem Windows-Desktop kann auch ein Update-Button angelegt werden:
+
+```powershell
+cd $env:USERPROFILE\Documents\trading_tool
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup_windows_update_button.ps1
+```
+
+Der Button startet `update_homeserver_windows.bat`.
 
 Wichtig: Die folgenden Live-Daten sollen nicht in GitHub liegen:
 
@@ -161,15 +216,39 @@ docker compose up -d --build
 
 Dabei bleibt `data/` erhalten, weil es als lokaler Server-Ordner in die Container eingebunden ist.
 
+## Google Sheets abloesen
+
+Wenn die Live-Daten noch in Google Sheets liegen, einmalig auf dem Homeserver importieren, solange die bisherigen Google-Secrets dort noch vorhanden sind:
+
+```bash
+cd /opt/trading_tool
+python scripts/import_sheets_to_local.py
+```
+
+Danach pruefen:
+
+```bash
+ls -lah data
+```
+
+Anschliessend Google-Secrets vom Server, aus Streamlit-Secrets und aus GitHub-Secrets entfernen. Fuer den normalen Homeserver-Betrieb reicht:
+
+```text
+TRADING_TOOL_STORAGE=local
+```
+
+Die GitHub Actions sind nicht mehr zeitgesteuert aktiv. Der Homeserver-Worker sammelt und bewertet lokal.
+
 ## Wichtig beim Umzug
 
-Die Sammeldaten sind lokale Dateien und werden groesstenteils nicht von Git verwaltet. Beim Umzug diese Dateien/Ordner mitnehmen:
+Die Sammeldaten sind lokale Dateien und werden groesstenteils nicht von Git verwaltet. Beim Umzug oder Backup diese Dateien/Ordner mitnehmen:
 
 - `data/trade_republic_universum.csv`
 - `data/standardwerte_vorschlag.json`
 - `data/prognosen_historie.csv`
 - `data/prognosen_auswertung.csv`
 - `data/prognosen_metadaten.json`
+- `data/optimierungsvorschlaege_historie.json`
 - optional: `data/cache_kurse/`
 - optional: `data/backups/`
 

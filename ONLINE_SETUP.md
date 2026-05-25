@@ -1,145 +1,100 @@
-# Kostenloser Online-Start mit GitHub, Streamlit Cloud und Google Sheets
+# Online-Betrieb auf dem eigenen Homeserver
 
 Ziel:
 
 - App online auf mehreren Endgeraeten nutzen.
-- Daten langfristig in Google Sheets sammeln.
+- Daten langfristig auf dem Homeserver im Ordner `data/` sammeln.
 - Lokal weiterentwickeln und per GitHub deployen.
-- Automatische Sammlung ueber GitHub Actions ausfuehren.
+- Automatische Sammlung ueber den Homeserver-Worker ausfuehren.
 
-## 1. Google Sheet anlegen
+## 1. Homeserver als Datenquelle nutzen
 
-Lege ein neues Google Sheet an. Die Tabellenblaetter werden bei Bedarf automatisch angelegt:
-
-- `universum`
-- `settings`
-- `prognosen_historie`
-- `prognosen_auswertung`
-- `metadaten`
-- `optimierung`
-
-Notiere die Spreadsheet-ID aus der URL:
+Das Docker-Setup speichert lokal auf dem Server:
 
 ```text
-https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+data/trade_republic_universum.csv
+data/standardwerte_vorschlag.json
+data/prognosen_historie.csv
+data/prognosen_auswertung.csv
+data/prognosen_metadaten.json
+data/optimierungsvorschlaege_historie.json
+data/backups/
 ```
 
-## 2. Google Service Account vorbereiten
+Im Docker Compose ist `TRADING_TOOL_STORAGE=local` gesetzt. Es werden keine Google-Secrets benoetigt.
 
-Die Nutzung fuer diesen Zweck ist normalerweise kostenlos:
+## 2. Daten aus Google Sheets einmalig uebernehmen
 
-- Google Sheets selbst ist mit einem normalen Google-Konto kostenlos nutzbar.
-- Ein Google Cloud Service Account und ein JSON-Schluessel kosten nichts.
-- Die Google Sheets API hat Quotas/Limits, aber fuer unsere wenigen geplanten Lese-/Schreibvorgaenge fallen normalerweise keine Kosten an.
-
-Wichtig: Keine Compute-Instanzen, Datenbanken oder andere kostenpflichtige Google-Cloud-Dienste aktivieren.
-
-### Service Account erstellen
-
-1. Oeffne die Google Cloud Console: `https://console.cloud.google.com/`
-2. Erstelle ein neues Projekt, z. B. `trading-tool`.
-3. Aktiviere die Google Sheets API:
-   - `APIs & Services`
-   - `Library`
-   - `Google Sheets API`
-   - `Enable`
-4. Gehe zu:
-   - `IAM & Admin`
-   - `Service Accounts`
-5. Erstelle einen Service Account, z. B. `trading-tool-sheets`.
-6. Beim Rollen-Schritt kann fuer unseren Zweck meist keine Projektrolle vergeben werden. Der eigentliche Zugriff kommt gleich ueber das Teilen des Sheets.
-7. Oeffne den Service Account.
-8. Tab `Keys`.
-9. `Add key` -> `Create new key`.
-10. `JSON` auswaehlen und erstellen.
-
-Der JSON-Schluessel wird einmalig heruntergeladen. Bewahre ihn sicher auf und pushe ihn niemals nach GitHub.
-
-Teile das Google Sheet mit der `client_email` aus dem JSON-Schluessel. Die Adresse sieht ungefaehr so aus:
-
-```text
-name@projekt.iam.gserviceaccount.com
-```
-
-Der Service Account braucht Bearbeitungsrechte auf dem Sheet.
-
-## 3. Lokale Secrets setzen
-
-Kopiere die Vorlage:
+Falls deine bisherigen Live-Daten noch in Google Sheets liegen, importiere sie einmalig auf dem Homeserver:
 
 ```bash
-cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+cd /opt/trading_tool
+python scripts/import_sheets_to_local.py
 ```
 
-Trage dort ein:
+Dafuer muessen die alten Google-Secrets nur fuer diesen einen Import noch vorhanden sein. Danach kannst du sie vom Server, aus Streamlit und aus GitHub entfernen.
 
-- `TRADING_TOOL_STORAGE = "google_sheets"`
-- `GOOGLE_SHEETS_SPREADSHEET_ID`
-- `GOOGLE_SERVICE_ACCOUNT_JSON`
-
-Die Datei `.streamlit/secrets.toml` wird nicht nach GitHub gepusht.
-
-## 4. Lokale Daten einmalig nach Google Sheets exportieren
+## 3. Server starten
 
 ```bash
-python scripts/export_local_data_to_sheets.py
+cd /opt/trading_tool
+docker compose up -d --build
 ```
 
-Danach kannst du lokal testweise mit Google Sheets starten:
+Status:
 
 ```bash
-TRADING_TOOL_STORAGE=google_sheets streamlit run app.py
+docker compose ps
+docker compose logs -f web
+docker compose logs -f worker
 ```
 
-## 5. GitHub Secrets setzen
-
-Im GitHub Repository unter `Settings -> Secrets and variables -> Actions` diese Secrets anlegen:
-
-- `GOOGLE_SHEETS_SPREADSHEET_ID`
-- `GOOGLE_SERVICE_ACCOUNT_JSON`
-
-Damit kann GitHub Actions automatisch in dein Google Sheet schreiben.
-
-## 6. Streamlit Community Cloud einrichten
-
-Bei Streamlit Community Cloud die App aus GitHub deployen:
-
-- Repository: `Menace-R34/trading-tool`
-- Branch: `main`
-- Main file path: `app.py`
-
-In den Streamlit App-Secrets dieselben Werte hinterlegen wie lokal:
-
-```toml
-TRADING_TOOL_STORAGE = "google_sheets"
-GOOGLE_SHEETS_SPREADSHEET_ID = "..."
-GOOGLE_SERVICE_ACCOUNT_JSON = '''...'''
-```
-
-## 7. Automatische Sammlung
-
-Die GitHub Action `.github/workflows/collect-snapshots.yml` startet den Sammler automatisch:
-
-- `07:24 UTC` und `08:24 UTC`: Europa-Fenster fuer Sommer-/Winterzeit
-- `13:54 UTC` und `14:54 UTC`: USA-Fenster fuer Sommer-/Winterzeit
-
-Der Workflow kann in GitHub auch manuell gestartet werden.
-
-Die GitHub Action `.github/workflows/evaluate-forecasts.yml` wertet die Prognosen taeglich automatisch aus:
-
-- `22:30 UTC`: Prognoseauswertung nach US-Boersenschluss
-
-Auch dieser Workflow kann in GitHub manuell gestartet werden.
-
-## 8. Entwicklungsablauf
+## 4. Entwicklungsablauf
 
 Lokal entwickeln:
 
 ```bash
 git status
 git add .
-git commit -m "Prepare online Google Sheets storage"
+git commit -m "Use homeserver local storage"
 git push
 ```
 
-Streamlit Community Cloud aktualisiert die App aus GitHub. GitHub Actions nutzt ebenfalls den aktuellen Code aus GitHub.
+Auf dem Homeserver aktualisieren:
+
+```bash
+cd /opt/trading_tool
+git pull
+docker compose up -d --build
+```
+
+Automatisch aktualisieren lassen:
+
+```bash
+cd /opt/trading_tool
+chmod +x scripts/homeserver_auto_update.sh
+crontab -e
+```
+
+Diese Zeile eintragen:
+
+```cron
+*/5 * * * * cd /opt/trading_tool && bash scripts/homeserver_auto_update.sh >> logs/auto_update.log 2>&1
+```
+
+Danach genuegt lokal `git push`. Der Homeserver holt die neue Version automatisch.
+
+Update per VPN direkt anstossen:
+
+```bash
+export TRADING_TOOL_SERVER="dein-user@192.168.178.50"
+export TRADING_TOOL_SERVER_OS="windows"
+git push
+scripts/deploy_via_vpn.sh
+```
+
+Falls der Serverpfad anders ist:
+
+```bash
+export TRADING_TOOL_SERVER_PATH="Documents\anderer_ordner"
+```

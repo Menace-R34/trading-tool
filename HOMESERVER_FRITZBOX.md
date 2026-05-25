@@ -155,22 +155,21 @@ Stattdessen:
 http://192.168.178.50:8501
 ```
 
-## 8. Speicherentscheidung
+## 8. Speicher
 
-Kurzfristig moeglich:
-
-- `TRADING_TOOL_STORAGE=local`: Daten lokal auf dem Laptop
-- `TRADING_TOOL_STORAGE=google_sheets`: weiter Google Sheets verwenden
-
-Fuer echte Unabhaengigkeit von Online-Diensten waere als naechster Schritt SQLite sinnvoll:
+Der Homeserver ist die Datenquelle. Die App und der Worker speichern lokal im Projektordner:
 
 ```text
-SQLite-Datei auf Laptop
-lokale Backups
-kein Google Sheets noetig
+data/
 ```
 
-Das ist ein separater Umbau.
+Setze oder belasse:
+
+```text
+TRADING_TOOL_STORAGE=local
+```
+
+Wenn bisher Daten in Google Sheets lagen, einmalig mit `python scripts/import_sheets_to_local.py` importieren und danach die Google-Secrets entfernen.
 
 ## 9. Wichtige Sicherheitsregeln
 
@@ -178,4 +177,4 @@ Das ist ein separater Umbau.
 - Zugriff von unterwegs nur ueber VPN.
 - Laptop regelmaessig aktualisieren.
 - Backups der Daten regelmaessig erstellen.
-- Service-Account-JSON-Dateien nicht offen im Editor lassen.
+- Keine Google-Service-Account-JSON-Dateien mehr auf dem Homeserver behalten, nachdem der Import abgeschlossen ist.

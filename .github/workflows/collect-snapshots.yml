@@ -2,20 +2,13 @@ name: Collect trading snapshots
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "24 7 * * *"
-    - cron: "24 8 * * *"
-    - cron: "54 13 * * *"
-    - cron: "54 14 * * *"
 
 jobs:
   collect:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-      TRADING_TOOL_STORAGE: google_sheets
-      GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
-      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      TRADING_TOOL_STORAGE: local
     steps:
       - uses: actions/checkout@v4
 
