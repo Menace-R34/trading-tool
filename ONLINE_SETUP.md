@@ -125,6 +125,12 @@ Die GitHub Action `.github/workflows/collect-snapshots.yml` startet den Sammler 
 
 Der Workflow kann in GitHub auch manuell gestartet werden.
 
+Die GitHub Action `.github/workflows/evaluate-forecasts.yml` wertet die Prognosen taeglich automatisch aus:
+
+- `22:30 UTC`: Prognoseauswertung nach US-Boersenschluss
+
+Auch dieser Workflow kann in GitHub manuell gestartet werden.
+
 ## 8. Entwicklungsablauf
 
 Lokal entwickeln:
