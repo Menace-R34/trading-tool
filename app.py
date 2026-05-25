@@ -1,5 +1,8 @@
 import os
 import streamlit as st
+
+st.set_page_config(page_title="Trading Tool", layout="wide")
+
 from modules.ui_einstellungen import initialisiere_einstellungen, hole_filter_settings_aus_session
 from modules.ui_navigation import erstelle_navigation
 from modules.ui.dashboard import seite_start
@@ -16,7 +19,6 @@ from modules.ui.verwaltung import (
 from modules.ui_hilfe import seite_hilfe
 from modules.universum import hole_tickerliste_aus_universum
 from modules.auswertung_builder import baue_auswertung_fuer_ticker
-from modules.logic.automation import start_background_worker
 from modules.prognose_speicher import speichere_prognosen
 
 # =========================================================
@@ -25,7 +27,8 @@ from modules.prognose_speicher import speichere_prognosen
 @st.cache_resource
 def system_start_init():
     """Wird einmalig beim Start des Streamlit-Servers ausgeführt."""
-    if _secret_oder_env("TRADING_TOOL_START_WORKER", "1") != "0":
+    if _secret_oder_env("TRADING_TOOL_START_WORKER", "0") != "0":
+        from modules.logic.automation import start_background_worker
         start_background_worker()
     return True
 
@@ -42,18 +45,11 @@ def _secret_oder_env(name, default=""):
 
 system_start_init()
 
-st.set_page_config(page_title="Trading Tool", layout="wide")
-
 
 def main():
     st.title("Trading Tool")
     initialisiere_einstellungen()
     
-    from modules.prognose_auswertung import fuehre_tagespruefung_aus
-    from modules.logic.automation import fuehre_automatische_fixierung_aus
-    fuehre_tagespruefung_aus(st.session_state)
-    fuehre_automatische_fixierung_aus(st.session_state)
-
     # --- GLOBALER FIX-TRIGGER ---
     if st.session_state.get("fixiere_prognosen_trigger"):
         st.session_state["fixiere_prognosen_trigger"] = False

@@ -10,6 +10,7 @@ os.chdir(PROJECT_ROOT)
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from modules.logic.automation import check_automation_loop
+from modules.prognose_auswertung import fuehre_tagespruefung_aus
 
 def main():
     print("=========================================================")
@@ -19,6 +20,7 @@ def main():
     
     while True:
         try:
+            fuehre_tagespruefung_aus()
             # Automatisierungs-Check ausführen
             check_automation_loop()
         except Exception as e:

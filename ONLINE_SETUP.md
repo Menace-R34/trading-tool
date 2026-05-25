@@ -57,22 +57,6 @@ git pull
 docker compose up -d --build
 ```
 
-Automatisch aktualisieren lassen:
-
-```bash
-cd /opt/trading_tool
-chmod +x scripts/homeserver_auto_update.sh
-crontab -e
-```
-
-Diese Zeile eintragen:
-
-```cron
-*/5 * * * * cd /opt/trading_tool && bash scripts/homeserver_auto_update.sh >> logs/auto_update.log 2>&1
-```
-
-Danach genuegt lokal `git push`. Der Homeserver holt die neue Version automatisch.
-
 Update per VPN direkt anstossen:
 
 ```bash

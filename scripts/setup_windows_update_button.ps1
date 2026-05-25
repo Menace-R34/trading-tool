@@ -12,7 +12,7 @@ $shortcutPath = Join-Path $desktopDir "Trading Tool aktualisieren.lnk"
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $buttonTarget
-$shortcut.WorkingDirectory = $projectRoot
+$shortcut.WorkingDirectory = [string]$projectRoot
 $shortcut.Save()
 
 Write-Host "Update-Button erstellt: $shortcutPath"

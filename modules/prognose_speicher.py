@@ -2,6 +2,8 @@
 # 01_IMPORTS
 # =========================================================
 import os
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -17,6 +19,40 @@ DATEI_PROGNOSEN = DATA_ORDNER / "prognosen_historie.csv"
 DATEI_AUSWERTUNG = DATA_ORDNER / "prognosen_auswertung.csv"
 DATEI_METADATEN = DATA_ORDNER / "prognosen_metadaten.json"
 DATEI_STANDARDWERTE = DATA_ORDNER / "standardwerte_vorschlag.json"
+
+
+@contextmanager
+def _datei_lock(dateipfad, timeout=120):
+    lock_pfad = Path(f"{dateipfad}.lock")
+    start = time.monotonic()
+    fd = None
+    while fd is None:
+        try:
+            fd = os.open(lock_pfad, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            if time.monotonic() - start > timeout:
+                raise TimeoutError(f"Timeout beim Warten auf Lock: {lock_pfad}")
+            time.sleep(0.2)
+
+    try:
+        yield
+    finally:
+        os.close(fd)
+        try:
+            lock_pfad.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _schreibe_json_datei(dateipfad, daten):
+    _stelle_data_ordner_sicher()
+    dateipfad = Path(dateipfad)
+    tmp_pfad = Path(f"{dateipfad}.tmp")
+    with _datei_lock(dateipfad):
+        with open(tmp_pfad, "w", encoding="utf-8") as f:
+            import json
+            json.dump(daten, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_pfad, dateipfad)
 
 # =========================================================
 # 03_STANDARDWERTE (Laden & Speichern)
@@ -38,9 +74,7 @@ def speichere_standardwerte(standardwerte, dateipfad=DATEI_STANDARDWERTE):
 
     DATA_ORDNER.mkdir(parents=True, exist_ok=True)
     try:
-        with open(dateipfad, "w", encoding="utf-8") as f:
-            import json
-            json.dump(standardwerte, f, ensure_ascii=False, indent=2)
+        _schreibe_json_datei(dateipfad, standardwerte)
         return True
     except Exception:
         return False
@@ -113,7 +147,11 @@ def _lese_csv_sicher(dateipfad):
 
 def _schreibe_csv(df, dateipfad):
     _stelle_data_ordner_sicher()
-    df.to_csv(dateipfad, index=False)
+    dateipfad = Path(dateipfad)
+    tmp_pfad = Path(f"{dateipfad}.tmp")
+    with _datei_lock(dateipfad):
+        df.to_csv(tmp_pfad, index=False)
+        os.replace(tmp_pfad, dateipfad)
 
 def _zu_float(wert, standard=0.0):
     try:
@@ -293,8 +331,7 @@ def protokolliere_fixierung(region):
         
     meta["fixierungen"][heute][region] = uhrzeit
     
-    with open(DATEI_METADATEN, "w") as f:
-        json.dump(meta, f, indent=2)
+    _schreibe_json_datei(DATEI_METADATEN, meta)
 
 def hole_fixierungs_status(region=None):
     """

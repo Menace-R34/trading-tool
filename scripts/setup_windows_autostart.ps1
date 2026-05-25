@@ -24,7 +24,7 @@ foreach ($item in $shortcuts) {
     $shortcutPath = Join-Path $startupDir $item.Name
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $item.Target
-    $shortcut.WorkingDirectory = $projectRoot
+    $shortcut.WorkingDirectory = [string]$projectRoot
     $shortcut.Save()
 
     Write-Host "Autostart eingerichtet: $shortcutPath"

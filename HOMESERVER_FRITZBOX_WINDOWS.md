@@ -211,7 +211,7 @@ Falls dein Projekt woanders liegt:
 export TRADING_TOOL_SERVER_PATH="Documents\anderer_ordner"
 ```
 
-Die Streamlit-Web-App erkennt Code-Aenderungen normalerweise selbst. Wenn du den Hintergrundsammler-Code aenderst, starte den Worker einmal neu.
+Der Windows-Update-Button stoppt Web-App und Worker vor dem Update und startet beide danach neu.
 
 ## 12. Update-Button auf dem Windows-Desktop
 
@@ -228,4 +228,4 @@ Danach liegt auf dem Desktop:
 Trading Tool aktualisieren
 ```
 
-Ein Doppelklick zieht die neueste Version von GitHub und aktualisiert die Python-Abhaengigkeiten. Die Streamlit-Web-App erkennt Code-Aenderungen normalerweise selbst. Wenn der Worker-Code geaendert wurde, den Worker einmal neu starten.
+Ein Doppelklick zieht die neueste Version von GitHub, aktualisiert bei geaenderter `requirements.txt` die Python-Abhaengigkeiten und startet Web-App sowie Worker neu.

@@ -8,7 +8,8 @@ from pathlib import Path
 
 from modules.prognose_speicher import (
     _lese_csv_sicher, _schreibe_csv, _heute_str, _jetzt_berlin,
-    DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN, _zu_float
+    DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN, _zu_float,
+    _schreibe_json_datei
 )
 from modules.markt_daten import rechne_df_in_eur_um
 
@@ -25,8 +26,7 @@ def _lade_metadaten():
         return {}
 
 def _speichere_metadaten(daten):
-    with open(DATEI_METADATEN, "w", encoding="utf-8") as f:
-        json.dump(daten, f, ensure_ascii=False, indent=2)
+    _schreibe_json_datei(DATEI_METADATEN, daten)
 
 def fuehre_tagespruefung_aus(settings=None):
     """

@@ -61,30 +61,6 @@ docker compose up -d --build
 
 Damit wird nur der Code aktualisiert. Die Daten bleiben erhalten, weil `docker-compose.yml` den lokalen Ordner `./data` in die Container einbindet.
 
-Wenn du nicht jedes Mal auf den Server moechtest, kann der Homeserver sich selbst aktualisieren. Dafuer einmalig auf dem Server einrichten:
-
-```bash
-cd /opt/trading_tool
-chmod +x scripts/homeserver_auto_update.sh
-crontab -e
-```
-
-Diese Zeile eintragen:
-
-```cron
-*/5 * * * * cd /opt/trading_tool && bash scripts/homeserver_auto_update.sh >> logs/auto_update.log 2>&1
-```
-
-Danach reicht lokal normalerweise:
-
-```bash
-git add .
-git commit -m "Beschreibung der Aenderung"
-git push
-```
-
-Der Homeserver zieht die neue Version dann innerhalb von bis zu fuenf Minuten selbst und startet Docker Compose neu, wenn sich Code geaendert hat.
-
 Wenn der Homeserver per VPN erreichbar ist, kannst du das Update auch direkt von deinem Mac aus anstossen. Fuer Windows 10 einmalig lokal setzen:
 
 ```bash
@@ -104,7 +80,7 @@ Standardpfad auf Windows ist `%USERPROFILE%\Documents\trading_tool`. Falls dein 
 export TRADING_TOOL_SERVER_PATH="Documents\anderer_ordner"
 ```
 
-Das Skript fuehrt auf Windows `git pull --ff-only` aus und installiert geaenderte Python-Abhaengigkeiten. Die Streamlit-Web-App erkennt Code-Aenderungen normalerweise selbst. Wenn du den Hintergrundsammler-Code aenderst, starte den Worker einmal neu.
+Das Skript fuehrt auf Windows `git pull --ff-only` aus und installiert geaenderte Python-Abhaengigkeiten. Der Windows-Update-Button stoppt Web-App und Worker vor dem Update und startet beide danach neu.
 
 Auf dem Windows-Desktop kann auch ein Update-Button angelegt werden:
 
