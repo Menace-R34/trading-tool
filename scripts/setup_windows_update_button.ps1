@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $desktopDir = [Environment]::GetFolderPath("Desktop")
 $buttonTarget = Join-Path $projectRoot "update_homeserver_windows.bat"
 
