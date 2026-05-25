@@ -33,7 +33,6 @@ if ($localRev -eq $remoteRev) {
     Get-CimInstance Win32_Process |
         Where-Object {
             $_.CommandLine -and
-            $_.CommandLine -like "*$projectRoot*" -and
             (
                 $_.CommandLine -like "*streamlit run app.py*" -or
                 $_.CommandLine -like "*background_worker.py*"
