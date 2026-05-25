@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,10 @@ SHEET_NAMES = {
     "prognosen_metadaten": "metadaten",
     "optimierungsvorschlaege_historie": "optimierung",
 }
+
+_TABLE_CACHE = {}
+_JSON_CACHE = {}
+_CACHE_TTL_SECONDS = int(os.getenv("TRADING_TOOL_SHEETS_CACHE_TTL", "300"))
 
 
 def backend_name():
@@ -31,9 +36,15 @@ def logical_name_from_path(dateipfad):
 def lese_tabelle(logical_name):
     if not nutzt_google_sheets():
         return None
+    cached = _cache_get(_TABLE_CACHE, logical_name)
+    if cached is not None:
+        return cached.copy()
+
     ws = _worksheet(logical_name)
     rows = _records(ws)
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    _cache_set(_TABLE_CACHE, logical_name, df.copy())
+    return df
 
 
 def schreibe_tabelle(logical_name, df):
@@ -42,17 +53,23 @@ def schreibe_tabelle(logical_name, df):
     ws = _worksheet(logical_name)
     ws.clear()
     if df is None or df.empty:
+        _cache_set(_TABLE_CACHE, logical_name, pd.DataFrame())
         return True
 
     export = df.copy().fillna("")
     values = [export.columns.tolist()] + export.astype(str).values.tolist()
     ws.update(values)
+    _cache_set(_TABLE_CACHE, logical_name, export.copy())
     return True
 
 
 def lese_json(logical_name, default=None):
     if not nutzt_google_sheets():
         return default
+    cached = _cache_get(_JSON_CACHE, logical_name)
+    if cached is not None:
+        return cached
+
     ws = _worksheet(logical_name)
     rows = _records(ws)
     if not rows:
@@ -60,7 +77,9 @@ def lese_json(logical_name, default=None):
 
     if len(rows) == 1 and "json" in rows[0]:
         try:
-            return json.loads(rows[0].get("json") or "{}")
+            daten = json.loads(rows[0].get("json") or "{}")
+            _cache_set(_JSON_CACHE, logical_name, daten)
+            return daten
         except Exception:
             return default
 
@@ -74,7 +93,9 @@ def lese_json(logical_name, default=None):
             daten[key] = json.loads(value)
         except Exception:
             daten[key] = value
-    return daten or default
+    ergebnis = daten or default
+    _cache_set(_JSON_CACHE, logical_name, ergebnis)
+    return ergebnis
 
 
 def schreibe_json(logical_name, daten):
@@ -83,7 +104,23 @@ def schreibe_json(logical_name, daten):
     ws = _worksheet(logical_name)
     ws.clear()
     ws.update([["json"], [json.dumps(daten or {}, ensure_ascii=False)]])
+    _cache_set(_JSON_CACHE, logical_name, daten or {})
     return True
+
+
+def _cache_get(cache, key):
+    eintrag = cache.get(key)
+    if not eintrag:
+        return None
+    zeitpunkt, wert = eintrag
+    if time.time() - zeitpunkt > _CACHE_TTL_SECONDS:
+        cache.pop(key, None)
+        return None
+    return wert
+
+
+def _cache_set(cache, key, value):
+    cache[key] = (time.time(), value)
 
 
 def _worksheet(logical_name):
