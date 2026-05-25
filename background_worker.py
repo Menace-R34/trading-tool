@@ -2,9 +2,12 @@ import time
 import datetime
 import sys
 import os
+from pathlib import Path
 
-# Pfad hinzufügen, damit Module gefunden werden
-sys.path.append(os.getcwd())
+# Projektpfad hinzufügen, damit Module auch bei Dienst-Starts gefunden werden
+PROJECT_ROOT = Path(__file__).resolve().parent
+os.chdir(PROJECT_ROOT)
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from modules.logic.automation import check_automation_loop
 

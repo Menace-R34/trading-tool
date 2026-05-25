@@ -1,0 +1,11 @@
+{
+	email deine-email@example.com
+}
+
+deine-domain.example.com {
+	basicauth {
+		deinname HASH_HIER_EINTRAGEN
+	}
+
+	reverse_proxy web:8501
+}

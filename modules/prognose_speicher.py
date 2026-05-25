@@ -7,6 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import pandas as pd
 import shutil
+from modules import storage
 
 # =========================================================
 # 02_KONSTANTEN
@@ -22,6 +23,12 @@ DATEI_STANDARDWERTE = DATA_ORDNER / "standardwerte_vorschlag.json"
 # 03_STANDARDWERTE (Laden & Speichern)
 # =========================================================
 def lade_gespeicherte_standardwerte(dateipfad=DATEI_STANDARDWERTE):
+    logical_name = storage.logical_name_from_path(dateipfad)
+    if logical_name:
+        daten = storage.lese_json(logical_name, default=None)
+        if isinstance(daten, dict):
+            return daten
+
     if not Path(dateipfad).exists():
         return {}
     try:
@@ -35,6 +42,10 @@ def lade_gespeicherte_standardwerte(dateipfad=DATEI_STANDARDWERTE):
 def speichere_standardwerte(standardwerte, dateipfad=DATEI_STANDARDWERTE):
     if not isinstance(standardwerte, dict):
         return False
+    logical_name = storage.logical_name_from_path(dateipfad)
+    if logical_name and storage.schreibe_json(logical_name, standardwerte):
+        return True
+
     DATA_ORDNER.mkdir(parents=True, exist_ok=True)
     try:
         with open(dateipfad, "w", encoding="utf-8") as f:
@@ -67,10 +78,25 @@ def _zeitstempel_str():
     return _jetzt_berlin().strftime("%Y-%m-%d %H:%M:%S")
 
 def _lese_csv_sicher(dateipfad):
-    if not Path(dateipfad).exists():
-        return pd.DataFrame()
+    logical_name = storage.logical_name_from_path(dateipfad)
+    if logical_name:
+        df_storage = storage.lese_tabelle(logical_name)
+        if df_storage is not None:
+            df = df_storage
+        else:
+            df = None
+    else:
+        df = None
+
+    if df is None:
+        if not Path(dateipfad).exists():
+            return pd.DataFrame()
+        try:
+            df = pd.read_csv(dateipfad)
+        except Exception:
+            return pd.DataFrame()
+
     try:
-        df = pd.read_csv(dateipfad)
         # --- MIGRATION: Alle möglichen Varianten auf technischen Standard normalisieren ---
         rename_map = {
             "Erwarteter Gewinn (Day) €": "Day Netto €",
@@ -107,6 +133,10 @@ def _lese_csv_sicher(dateipfad):
         return pd.DataFrame()
 
 def _schreibe_csv(df, dateipfad):
+    logical_name = storage.logical_name_from_path(dateipfad)
+    if logical_name and storage.schreibe_tabelle(logical_name, df):
+        return
+
     _stelle_data_ordner_sicher()
     df.to_csv(dateipfad, index=False)
 
@@ -268,8 +298,10 @@ def protokolliere_fixierung(region):
     import json
     _stelle_data_ordner_sicher()
     
-    meta = {}
-    if DATEI_METADATEN.exists():
+    meta = storage.lese_json("prognosen_metadaten", default=None)
+    if not isinstance(meta, dict):
+        meta = {}
+    if not meta and DATEI_METADATEN.exists():
         try:
             with open(DATEI_METADATEN, "r") as f:
                 meta = json.load(f)
@@ -287,8 +319,9 @@ def protokolliere_fixierung(region):
         
     meta["fixierungen"][heute][region] = uhrzeit
     
-    with open(DATEI_METADATEN, "w") as f:
-        json.dump(meta, f, indent=2)
+    if not storage.schreibe_json("prognosen_metadaten", meta):
+        with open(DATEI_METADATEN, "w") as f:
+            json.dump(meta, f, indent=2)
 
 def hole_fixierungs_status(region=None):
     """
@@ -296,14 +329,15 @@ def hole_fixierungs_status(region=None):
     Falls region=None, wird das gesamte Dictionary für heute zurückgegeben.
     """
     import json
-    if not DATEI_METADATEN.exists():
-        return None
-        
-    try:
-        with open(DATEI_METADATEN, "r") as f:
-            meta = json.load(f)
-    except:
-        return None
+    meta = storage.lese_json("prognosen_metadaten", default=None)
+    if not isinstance(meta, dict):
+        if not DATEI_METADATEN.exists():
+            return None
+        try:
+            with open(DATEI_METADATEN, "r") as f:
+                meta = json.load(f)
+        except:
+            return None
         
     heute = _heute_str()
     fix_heute = meta.get("fixierungen", {}).get(heute, {})

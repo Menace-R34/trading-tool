@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from modules.ui_einstellungen import initialisiere_einstellungen, hole_filter_settings_aus_session
 from modules.ui_navigation import erstelle_navigation
@@ -16,6 +17,7 @@ from modules.ui_hilfe import seite_hilfe
 from modules.universum import hole_tickerliste_aus_universum
 from modules.auswertung_builder import baue_auswertung_fuer_ticker
 from modules.logic.automation import start_background_worker
+from modules.prognose_speicher import speichere_prognosen
 
 # =========================================================
 # 00_SYSTEM_START
@@ -23,7 +25,8 @@ from modules.logic.automation import start_background_worker
 @st.cache_resource
 def system_start_init():
     """Wird einmalig beim Start des Streamlit-Servers ausgeführt."""
-    start_background_worker()
+    if os.getenv("TRADING_TOOL_START_WORKER", "1") != "0":
+        start_background_worker()
     return True
 
 system_start_init()

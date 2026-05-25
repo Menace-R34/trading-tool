@@ -10,6 +10,7 @@ venv/
 
 # macOS
 .DS_Store
+.streamlit/secrets.toml
 
 # Lokale Daten & Caches des Trading Tools
 data/cache_kurse/
@@ -22,3 +23,4 @@ data/standardwerte_vorschlag.json
 # Exporte & Scratch
 exports/
 scratch/
+logs/*.log
