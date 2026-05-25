@@ -11,11 +11,16 @@ from modules.prognose_speicher import (
     DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN, _zu_float
 )
 from modules.markt_daten import rechne_df_in_eur_um
+from modules import storage
 
 # =========================================================
 # 02_METADATEN / TAGESPRUEFUNG
 # =========================================================
 def _lade_metadaten():
+    daten = storage.lese_json("prognosen_metadaten", default=None)
+    if isinstance(daten, dict):
+        return daten
+
     if not Path(DATEI_METADATEN).exists():
         return {}
     try:
@@ -25,6 +30,8 @@ def _lade_metadaten():
         return {}
 
 def _speichere_metadaten(daten):
+    if storage.schreibe_json("prognosen_metadaten", daten):
+        return
     with open(DATEI_METADATEN, "w", encoding="utf-8") as f:
         json.dump(daten, f, ensure_ascii=False, indent=2)
 

@@ -6,6 +6,7 @@ from modules.prognose_speicher import (
     loesche_historische_daten,
     _zeitstempel_str,
     liste_backups_auf,
+    loesche_alte_backups,
     stelle_backup_wieder_her
 )
 from modules.prognose_auswertung import berechne_trefferstatistik
@@ -137,6 +138,14 @@ def seite_einstellungen():
                         st.rerun()
                     else:
                         st.error(meldung)
+
+                if st.button("Alte Backups bereinigen (20 behalten)", use_container_width=True):
+                    ergebnis = loesche_alte_backups(max_gruppen=20)
+                    if ergebnis["fehler"]:
+                        st.error("; ".join(ergebnis["fehler"]))
+                    else:
+                        st.success(f"{ergebnis['geloescht']} Backup-Tabs/Dateien gelöscht. {ergebnis['behalten']} Gruppen behalten.")
+                        st.rerun()
 
             st.divider()
             st.markdown("**🗑️ Daten bereinigen**")

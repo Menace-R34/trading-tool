@@ -99,8 +99,14 @@ def seite_signale():
     df_us = filtere_nach_region(df, "USA")
 
     if nur_kandidaten:
-        df_eu = df_eu[df_eu["Day Kauf"].eq("Ja") | df_eu["Swing Kauf"].eq("Ja")]
-        df_us = df_us[df_us["Day Kauf"].eq("Ja") | df_us["Swing Kauf"].eq("Ja")]
+        df_eu = df_eu[
+            df_eu["Day Kauf"].astype(str).str.upper().eq("JA") |
+            df_eu["Swing Kauf"].astype(str).str.upper().eq("JA")
+        ]
+        df_us = df_us[
+            df_us["Day Kauf"].astype(str).str.upper().eq("JA") |
+            df_us["Swing Kauf"].astype(str).str.upper().eq("JA")
+        ]
 
     st.markdown(f"### 🇪🇺 Europa Signale ({len(df_eu)})")
     _zeige_signal_tabelle_kompakt(df_eu, "Europa")
@@ -122,7 +128,15 @@ def _zeige_signal_tabelle_kompakt(df, region):
     ]
     vorhandene_spalten = [s for s in spalten if s in df.columns]
     sort_spalte = "Day Score" if "Day Score" in df.columns else "Ticker"
-    df_plot = df[vorhandene_spalten].sort_values(sort_spalte, ascending=False)
+    df_plot = df[vorhandene_spalten].copy()
+    if sort_spalte != "Ticker":
+        df_plot["_sort_key"] = pd.to_numeric(
+            df_plot[sort_spalte].astype(str).str.replace(",", ".", regex=False),
+            errors="coerce",
+        ).fillna(0.0)
+        df_plot = df_plot.sort_values("_sort_key", ascending=False).drop(columns=["_sort_key"])
+    else:
+        df_plot = df_plot.sort_values(sort_spalte, ascending=False)
 
     st.dataframe(baue_styler(df_plot), use_container_width=True, hide_index=True)
 

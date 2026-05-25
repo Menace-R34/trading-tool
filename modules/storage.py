@@ -81,6 +81,17 @@ def liste_tabellen(prefix=None):
     return titel
 
 
+def loesche_tabelle(tabellen_name):
+    if not nutzt_google_sheets():
+        return False
+    spreadsheet = _spreadsheet()
+    worksheet = spreadsheet.worksheet(tabellen_name)
+    spreadsheet.del_worksheet(worksheet)
+    _TABLE_CACHE.pop(tabellen_name, None)
+    _JSON_CACHE.pop(tabellen_name, None)
+    return True
+
+
 def tabellen_name(logical_name):
     return SHEET_NAMES.get(logical_name, logical_name)
 

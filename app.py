@@ -25,9 +25,22 @@ from modules.prognose_speicher import speichere_prognosen
 @st.cache_resource
 def system_start_init():
     """Wird einmalig beim Start des Streamlit-Servers ausgeführt."""
-    if os.getenv("TRADING_TOOL_START_WORKER", "1") != "0":
+    storage_backend = _secret_oder_env("TRADING_TOOL_STORAGE", "local")
+    start_worker_default = "0" if storage_backend == "google_sheets" else "1"
+    if _secret_oder_env("TRADING_TOOL_START_WORKER", start_worker_default) != "0":
         start_background_worker()
     return True
+
+
+def _secret_oder_env(name, default=""):
+    if os.getenv(name):
+        return os.getenv(name)
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    return default
 
 system_start_init()
 

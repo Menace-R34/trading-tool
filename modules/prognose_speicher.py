@@ -415,6 +415,38 @@ def liste_backups_auf():
         
     return sorted(ergebnis, key=lambda x: x["zeitstempel"], reverse=True)
 
+def loesche_alte_backups(max_gruppen=20):
+    """Löscht alte Backup-Gruppen und behält die neuesten max_gruppen."""
+    backups = liste_backups_auf()
+    if len(backups) <= max_gruppen:
+        return {"geloescht": 0, "behalten": len(backups), "fehler": []}
+
+    geloescht = 0
+    fehler = []
+    alte_backups = backups[max_gruppen:]
+
+    if storage.nutzt_google_sheets():
+        for backup in alte_backups:
+            for tabellen_name in backup.get("dateien", []):
+                try:
+                    if storage.loesche_tabelle(tabellen_name):
+                        geloescht += 1
+                except Exception as e:
+                    fehler.append(f"{tabellen_name}: {str(e)}")
+        return {"geloescht": geloescht, "behalten": max_gruppen, "fehler": fehler}
+
+    for backup in alte_backups:
+        for dateiname in backup.get("dateien", []):
+            try:
+                pfad = BACKUP_ORDNER / dateiname
+                if pfad.exists():
+                    pfad.unlink()
+                    geloescht += 1
+            except Exception as e:
+                fehler.append(f"{dateiname}: {str(e)}")
+
+    return {"geloescht": geloescht, "behalten": max_gruppen, "fehler": fehler}
+
 def stelle_backup_wieder_her(zeitstempel):
     """Stellt alle Dateien eines Zeitstempels wieder her."""
     if storage.nutzt_google_sheets():
