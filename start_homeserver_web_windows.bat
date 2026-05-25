@@ -4,7 +4,7 @@ if "%TRADING_TOOL_PROJECT_DIR%"=="" set "TRADING_TOOL_PROJECT_DIR=%~dp0"
 cd /d "%TRADING_TOOL_PROJECT_DIR%"
 
 set "TRADING_TOOL_PROJECT_DIR_PS=%TRADING_TOOL_PROJECT_DIR:\=\\%"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='%TRADING_TOOL_PROJECT_DIR_PS%'; $p=Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like ('*' + $root + '*') -and $_.CommandLine -like '*streamlit run app.py*' }; if ($p) { exit 10 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$root='%TRADING_TOOL_PROJECT_DIR_PS%'; $self=$PID; $p=Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $self -and $_.CommandLine -and $_.CommandLine -like ('*' + $root + '*') -and $_.CommandLine -like '*streamlit run app.py*' }; if ($p) { exit 10 }"
 if %ERRORLEVEL%==10 (
     echo Trading Tool Web-App laeuft bereits.
     exit /b 0
