@@ -15,6 +15,16 @@ $shortcuts = @(
 )
 
 $shell = New-Object -ComObject WScript.Shell
+$existing = @(
+    Join-Path $startupDir "Trading Tool Web.lnk"
+    Join-Path $startupDir "Trading Tool Worker.lnk"
+)
+
+foreach ($path in $existing) {
+    if (Test-Path $path) {
+        Remove-Item $path -Force
+    }
+}
 
 foreach ($item in $shortcuts) {
     if (-not (Test-Path $item.Target)) {
