@@ -27,7 +27,7 @@ from modules.prognose_speicher import speichere_prognosen
 @st.cache_resource
 def system_start_init():
     """Wird einmalig beim Start des Streamlit-Servers ausgeführt."""
-    if _secret_oder_env("TRADING_TOOL_START_WORKER", "0") != "0":
+    if _secret_oder_env("TRADING_TOOL_START_WORKER", "1") != "0":
         from modules.logic.automation import start_background_worker
         start_background_worker()
     return True

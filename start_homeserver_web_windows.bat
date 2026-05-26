@@ -12,7 +12,9 @@ if %ERRORLEVEL%==10 (
 
 call .venv\Scripts\activate.bat
 
-set TRADING_TOOL_START_WORKER=0
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
+set TRADING_TOOL_START_WORKER=1
 set TRADING_TOOL_PROCESS=web
 
 python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501

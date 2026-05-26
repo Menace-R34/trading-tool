@@ -7,10 +7,6 @@ $shortcuts = @(
     @{
         Name = "Trading Tool Web.lnk"
         Target = Join-Path $projectRoot "start_homeserver_web_windows.bat"
-    },
-    @{
-        Name = "Trading Tool Worker.lnk"
-        Target = Join-Path $projectRoot "start_homeserver_worker_windows.bat"
     }
 )
 
@@ -41,4 +37,5 @@ foreach ($item in $shortcuts) {
 }
 
 Write-Host ""
-Write-Host "Fertig. Beim naechsten Login dieses Windows-Benutzers starten Web-App und Worker automatisch."
+Write-Host "Fertig. Beim naechsten Login dieses Windows-Benutzers startet die Web-App automatisch."
+Write-Host "Die automatische Fixierung laeuft innerhalb der Web-App."

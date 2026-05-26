@@ -68,9 +68,8 @@ if ((Test-Path $pythonPath) -and ($requirementsBefore -ne $requirementsAfter)) {
 }
 
 if ($updated) {
-    Write-Host "Starte Web-App und Worker neu..."
+    Write-Host "Starte Web-App neu..."
     Start-Process -FilePath (Join-Path $projectRoot "start_homeserver_web_windows.bat") -WorkingDirectory $projectRoot
-    Start-Process -FilePath (Join-Path $projectRoot "start_homeserver_worker_windows.bat") -WorkingDirectory $projectRoot
 }
 
 Write-Host ""

@@ -6,18 +6,17 @@ Zielbild:
 
 - Ein Server laeuft dauerhaft online.
 - Die Web-Oberflaeche ist von mehreren Geraeten erreichbar.
-- Ein separater Worker sammelt weiter Daten, auch wenn niemand die Web-Oberflaeche offen hat.
+- Die automatische Fixierung laeuft innerhalb der Web-App als Hintergrundthread.
 - GitHub ist die Code-Zentrale.
 - Du entwickelst lokal weiter, pushst nach GitHub, und der Server zieht fertige Aenderungen von GitHub.
 
-Das Projekt hat zwei laufende Prozesse:
+Das Projekt braucht auf dem Windows-Homeserver nur einen laufenden Prozess:
 
 - Web-Oberflaeche: `streamlit run app.py`
-- Hintergrundsammler: `python background_worker.py`
 
-Der Hintergrundsammler prueft jede Minute die Automatik. Wenn `auto_fix_aktiv` aktiv ist, fixiert er Europa und USA nach den gespeicherten Zeiten und schreibt die Daten auf dem Homeserver nach `data/`.
+Die Web-App startet beim Programmstart einen integrierten Hintergrundthread. Dieser prueft jede Minute die Automatik. Wenn `auto_fix_aktiv` aktiv ist, fixiert er Europa und USA nach den gespeicherten Zeiten und schreibt die Daten auf dem Homeserver nach `data/`.
 
-In der Web-App kann der integrierte Hintergrundthread mit `TRADING_TOOL_START_WORKER=0` deaktiviert werden. Die Dienstvorlagen machen das bereits, damit Web-App und separater Worker nicht doppelt sammeln.
+Der integrierte Hintergrundthread kann mit `TRADING_TOOL_START_WORKER=0` deaktiviert werden. Der separate Start ueber `background_worker.py` bleibt nur als manuelle Notfalloption erhalten.
 
 ## Empfohlene Architektur
 

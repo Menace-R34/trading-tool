@@ -37,6 +37,8 @@ def _worker_loop():
     """Endlosschleife für den Hintergrund-Thread."""
     while True:
         try:
+            from modules.prognose_auswertung import fuehre_tagespruefung_aus
+            fuehre_tagespruefung_aus(lade_gespeicherte_standardwerte())
             check_automation_loop()
         except Exception as e:
             print(f"⚠️ Fehler im Hintergrund-Wächter: {e}")
