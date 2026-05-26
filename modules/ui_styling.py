@@ -70,6 +70,10 @@ def formatiere_anzeige_df(df):
         "Swing CRV": "CRV (S)",
         "Hist. Idealer Hold (Day)": "Hold (D)",
         "Hist. Idealer Hold (Swing)": "Hold (S)",
+        "Intraday Beste Kaufzeit": "Kaufzeit",
+        "Intraday Beste Verkaufszeit": "Verkauf",
+        "Intraday Ø Haltedauer Min": "Hold Min",
+        "Intraday Ø Potenzial %": "Intra %",
         "Saison-Score": "Saison",
         "News-Score": "News"
     }
@@ -93,6 +97,10 @@ def formatiere_anzeige_df(df):
         "Day €",
         "Swing €",
         "Kurs €",
+        "Kaufzeit",
+        "Verkauf",
+        "Hold Min",
+        "Intra %",
     ]
 
     restliche_spalten = [sp for sp in anzeige_df.columns if sp not in priorisierte_spalten]
@@ -125,6 +133,8 @@ def baue_styler(df):
         "CRV (S)": "{:.2f}",
         "Hold (D)": "{:d}",
         "Hold (S)": "{:d}",
+        "Hold Min": "{:d}",
+        "Intra %": "{:.2f}",
         "Ø Tagesrange %": "{:.2f}",
         "ATR relativ %": "{:.2f}",
         "RSI 14": "{:.2f}",

@@ -19,6 +19,7 @@ data/prognosen_historie.csv
 data/prognosen_auswertung.csv
 data/prognosen_metadaten.json
 data/standardwerte_vorschlag.json
+data/intraday_timing.csv
 
 # Exporte & Scratch
 exports/

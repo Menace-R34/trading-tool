@@ -16,7 +16,7 @@ from modules.prognose_speicher import (
     _zeitstempel_str
 )
 from modules.markt_lage import berechne_marktlage
-from modules.ui.common import _prepare_df
+from modules.ui.common import _prepare_df, _ergaenze_intraday_timing
 
 
 def _sortiere_numerisch(df, spalte, ascending=False):
@@ -140,15 +140,17 @@ def _zeige_top_liste(df_region, markt, region):
         if df_day.empty:
             st.info("Keine Daytrading-Signale.")
         else:
-            day_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Day Kauf", "Day Score", "Day CRV", "Day Netto €", "Hist. Idealer Hold (Day)"]
-            day_cols = [c for c in day_cols if c in df_day.columns]
-            st.dataframe(baue_styler(_sortiere_numerisch(df_day[day_cols], "Day Score").head(5)), use_container_width=True, hide_index=True)
+            df_day_top = _ergaenze_intraday_timing(_sortiere_numerisch(df_day, "Day Score").head(5))
+            day_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Day Kauf", "Day Score", "Day CRV", "Day Netto €", "Intraday Beste Kaufzeit", "Intraday Beste Verkaufszeit", "Hist. Idealer Hold (Day)"]
+            day_cols = [c for c in day_cols if c in df_day_top.columns]
+            st.dataframe(baue_styler(df_day_top[day_cols]), use_container_width=True, hide_index=True)
             
     with col2:
         st.markdown(f"#### 📈 Swingtrading {region}")
         if df_swing.empty:
             st.info("Keine Swingtrading-Signale.")
         else:
-            swing_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Swing Kauf", "Swing Score", "Swing CRV", "Swing Netto €", "Saison-Score", "Hist. Idealer Hold (Swing)"]
-            swing_cols = [c for c in swing_cols if c in df_swing.columns]
-            st.dataframe(baue_styler(_sortiere_numerisch(df_swing[swing_cols], "Swing Score").head(5)), use_container_width=True, hide_index=True)
+            df_swing_top = _ergaenze_intraday_timing(_sortiere_numerisch(df_swing, "Swing Score").head(5))
+            swing_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Swing Kauf", "Swing Score", "Swing CRV", "Swing Netto €", "Intraday Beste Kaufzeit", "Intraday Beste Verkaufszeit", "Saison-Score", "Hist. Idealer Hold (Swing)"]
+            swing_cols = [c for c in swing_cols if c in df_swing_top.columns]
+            st.dataframe(baue_styler(df_swing_top[swing_cols]), use_container_width=True, hide_index=True)
