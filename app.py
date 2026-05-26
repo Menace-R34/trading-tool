@@ -49,6 +49,12 @@ system_start_init()
 def main():
     st.title("Trading Tool")
     initialisiere_einstellungen()
+
+    if _secret_oder_env("TRADING_TOOL_APP_AUTOMATION", "1") != "0":
+        from modules.prognose_auswertung import fuehre_tagespruefung_aus
+        from modules.logic.automation import fuehre_automatische_fixierung_aus
+        fuehre_tagespruefung_aus(st.session_state)
+        fuehre_automatische_fixierung_aus(st.session_state)
     
     # --- GLOBALER FIX-TRIGGER ---
     if st.session_state.get("fixiere_prognosen_trigger"):
