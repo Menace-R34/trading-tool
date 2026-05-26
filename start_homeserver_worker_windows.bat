@@ -5,6 +5,7 @@ cd /d "%TRADING_TOOL_PROJECT_DIR%"
 
 set "TRADING_TOOL_START_LOCK=%TEMP%\trading_tool_worker_start.lock"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like '*background_worker.py*' }; if (-not $p -and (Test-Path '%TRADING_TOOL_START_LOCK%')) { Remove-Item '%TRADING_TOOL_START_LOCK%' -Force -Recurse }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine -like '*background_worker.py*' }; $pidLock=Join-Path '%TRADING_TOOL_PROJECT_DIR%' 'data\background_worker.pid'; if (-not $p -and (Test-Path $pidLock)) { Remove-Item $pidLock -Force }"
 mkdir "%TRADING_TOOL_START_LOCK%" 2>nul
 if errorlevel 1 (
     echo Trading Tool Worker-Start laeuft bereits.

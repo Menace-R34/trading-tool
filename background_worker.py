@@ -39,18 +39,7 @@ def _hole_worker_lock():
 def _hole_worker_pid_lock():
     WORKER_PID_LOCK.parent.mkdir(parents=True, exist_ok=True)
     if WORKER_PID_LOCK.exists():
-        try:
-            pid = int(WORKER_PID_LOCK.read_text(encoding="utf-8").strip())
-        except (OSError, ValueError):
-            pid = None
-
-        if pid and _prozess_laeuft(pid):
-            return None
-
-        try:
-            WORKER_PID_LOCK.unlink()
-        except FileNotFoundError:
-            pass
+        return None
 
     try:
         fd = os.open(WORKER_PID_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -61,14 +50,6 @@ def _hole_worker_pid_lock():
     os.close(fd)
     atexit.register(_gib_worker_pid_lock_frei, WORKER_PID_LOCK)
     return WORKER_PID_LOCK
-
-
-def _prozess_laeuft(pid):
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
 
 
 def _gib_worker_pid_lock_frei(lock_path):
