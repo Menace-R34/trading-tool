@@ -21,8 +21,12 @@ if %ERRORLEVEL%==10 (
 
 call .venv\Scripts\activate.bat
 
+if not exist "%TRADING_TOOL_PROJECT_DIR%\data\logs" mkdir "%TRADING_TOOL_PROJECT_DIR%\data\logs"
+
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 set TRADING_TOOL_START_WORKER=1
 set TRADING_TOOL_PROCESS=worker
 
-python "%TRADING_TOOL_PROJECT_DIR%\background_worker.py"
+python "%TRADING_TOOL_PROJECT_DIR%\background_worker.py" >> "%TRADING_TOOL_PROJECT_DIR%\data\logs\background_worker.log" 2>&1
 rmdir "%TRADING_TOOL_START_LOCK%" 2>nul
