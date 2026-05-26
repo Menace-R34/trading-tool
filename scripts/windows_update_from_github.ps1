@@ -11,7 +11,15 @@ if (-not (Test-Path ".git")) {
     throw "Dieser Ordner ist kein Git-Repository."
 }
 
-$status = git status --short
+$runtimePaths = @(
+    "data/background_worker.pid",
+    "data/logs/"
+)
+
+$status = git status --short | Where-Object {
+    $line = $_
+    -not ($runtimePaths | Where-Object { $line -like "?? $_*" })
+}
 if ($status) {
     Write-Host "Lokale Aenderungen gefunden. Update wird gestoppt:" -ForegroundColor Yellow
     Write-Host $status
