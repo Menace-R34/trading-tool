@@ -14,6 +14,13 @@ def berechne_erwartungswert(potenzial, risiko, trefferquote, gebuehren=2.0):
     erwartung = (trefferquote * potenzial) - ((1 - trefferquote) * risiko)
     return round(erwartung, 2), round(erwartung - gebuehren, 2)
 
+
+def _float_wert(daten, schluessel, standard=0.0):
+    try:
+        return float(str(_wert(daten, schluessel, standard)).replace(",", "."))
+    except Exception:
+        return standard
+
 def berechne_trade_parameter_day(statistik):
     kurs = _wert(statistik, "Letzter Kurs €", 0)
     atr = _wert(statistik, "ATR 14 €", 0)
@@ -55,6 +62,9 @@ def bewerte_daytrading_signal(statistik, saison, news, markt=None):
     news_score = _wert(news, "News-Score", 0.0)
     kurs = _wert(statistik, "Letzter Kurs €", 0.0)
     marktlage = _hole_marktlage(markt)
+    intraday_potenzial = _float_wert(statistik, "Intraday Ø Potenzial %", 0.0)
+    intraday_kaufzeit = _wert(statistik, "Intraday Beste Kaufzeit", "")
+    intraday_verkaufszeit = _wert(statistik, "Intraday Beste Verkaufszeit", "")
 
     trade = berechne_trade_parameter_day(statistik)
     crv = trade.get("CRV", 0.0)
@@ -78,10 +88,16 @@ def bewerte_daytrading_signal(statistik, saison, news, markt=None):
     if news_score > 0.15: gruende.append("positiver News-Impuls")
     if crv >= min_crv: gruende.append("CRV ausreichend")
     if potenzial >= min_potenzial: gruende.append("Potenzial ausreichend")
+    if intraday_potenzial >= 1.0: gruende.append("positives Intraday-Zeitfenster")
     if netto_erwartung >= min_netto: gruende.append("positiver Erwartungswert")
     elif netto_erwartung < 0: gruende.append("negativer Erwartungswert")
 
-    kauf_ja = (score >= score_schwelle and atr_relativ >= 1.8 and hitrate_2 >= 30 and tagesrange_avg >= 1.5 and 20 <= rsi <= 75 and news_score >= -0.35 and crv >= min_crv and potenzial >= min_potenzial and netto_erwartung >= min_netto)
+    if intraday_potenzial >= 1.5:
+        score += 2.0
+    elif intraday_potenzial <= 0:
+        score -= 1.0
+
+    kauf_ja = (score >= score_schwelle and atr_relativ >= 1.8 and hitrate_2 >= 30 and tagesrange_avg >= 1.5 and 20 <= rsi <= 75 and news_score >= -0.35 and crv >= min_crv and potenzial >= min_potenzial and netto_erwartung >= min_netto and intraday_potenzial >= 0)
     signal = "JA" if kauf_ja else "NEIN"
     
     if score >= score_schwelle + 8 and netto_erwartung >= min_netto: signalstaerke = "Stark"
@@ -93,7 +109,9 @@ def bewerte_daytrading_signal(statistik, saison, news, markt=None):
         "Day Farbe": _signal_farbe(signal), "Day Textfarbe": _signal_textfarbe(signal),
         "Day Stop Loss €": trade["Stop Loss €"], "Day Take Profit €": trade["Take Profit €"],
         "Day CRV": trade["CRV"], "Day Potenzial €": trade["Potenzial €"],
-        "Day Erwartung €": erwartung, "Day Netto €": netto_erwartung
+        "Day Erwartung €": erwartung, "Day Netto €": netto_erwartung,
+        "Day Buy-in Zeit": intraday_kaufzeit,
+        "Day Take-Profit Zeit": intraday_verkaufszeit,
     }
 
 def bewerte_swingtrading_signal(statistik, saison, news, markt=None):
@@ -105,6 +123,9 @@ def bewerte_swingtrading_signal(statistik, saison, news, markt=None):
     saison_score = _wert(saison, "Saison-Score", 0.0)
     news_score = _wert(news, "News-Score", 0.0)
     marktlage = _hole_marktlage(markt)
+    intraday_potenzial = _float_wert(statistik, "Intraday Ø Potenzial %", 0.0)
+    intraday_kaufzeit = _wert(statistik, "Intraday Beste Kaufzeit", "")
+    intraday_verkaufszeit = _wert(statistik, "Intraday Beste Verkaufszeit", "")
 
     trade = berechne_trade_parameter_swing(statistik)
     crv = trade.get("CRV", 0.0)
@@ -134,6 +155,10 @@ def bewerte_swingtrading_signal(statistik, saison, news, markt=None):
     if news_score > 0: gruende.append("positive Nachrichtenlage")
     if crv >= min_crv: gruende.append("CRV ausreichend")
     if potenzial >= min_potenzial: gruende.append("Potenzial ausreichend")
+    if intraday_potenzial >= 1.0: gruende.append("gutes Intraday-Einstiegsfenster")
+
+    if intraday_potenzial >= 1.5:
+        score += 1.0
 
     kauf_ja = (score >= score_schwelle and (trend_up or trend_stabil) and perf_20 >= -2 and 30 <= rsi <= 75 and saison_score >= -1.5 and news_score >= -0.4 and crv >= min_crv and potenzial >= min_potenzial)
     signal = "JA" if kauf_ja else "NEIN"
@@ -147,7 +172,9 @@ def bewerte_swingtrading_signal(statistik, saison, news, markt=None):
         "Swing Farbe": _signal_farbe(signal), "Swing Textfarbe": _signal_textfarbe(signal),
         "Swing Stop Loss €": trade["Stop Loss €"], "Swing Take Profit €": trade["Take Profit €"],
         "Swing CRV": trade["CRV"], "Swing Potenzial €": trade["Potenzial €"],
-        "Swing Erwartung €": erwartung_swing, "Swing Netto €": netto_swing
+        "Swing Erwartung €": erwartung_swing, "Swing Netto €": netto_swing,
+        "Swing Buy-in Zeit": intraday_kaufzeit,
+        "Swing Take-Profit Zeit": intraday_verkaufszeit,
     }
 
 def bewerte_signale(statistik, saison, news, markt=None):

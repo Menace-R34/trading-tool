@@ -96,6 +96,122 @@ def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
     }
 
 
+def werte_intraday_prognose_aus(
+    ticker,
+    prognose_datum,
+    kaufzeit,
+    stop_loss,
+    take_profit,
+    horizon_tage=3,
+    interval="15m",
+):
+    if not ticker or not prognose_datum or not kaufzeit:
+        return None
+
+    start = pd.to_datetime(prognose_datum)
+    if start.strftime("%Y-%m-%d") >= datetime.now().strftime("%Y-%m-%d"):
+        return None
+
+    ende = start + pd.Timedelta(days=int(horizon_tage) + 2)
+
+    try:
+        df = yf.download(
+            tickers=ticker,
+            start=start.strftime("%Y-%m-%d"),
+            end=ende.strftime("%Y-%m-%d"),
+            interval=interval,
+            auto_adjust=False,
+            progress=False,
+            prepost=False,
+        )
+    except Exception:
+        return None
+
+    if df is None or df.empty:
+        return None
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    if not {"High", "Low", "Close"}.issubset(df.columns):
+        return None
+
+    kauf_minute = _uhrzeit_zu_minute(kaufzeit)
+    if kauf_minute is None:
+        return None
+
+    df = df.dropna(subset=["High", "Low", "Close"]).sort_index()
+    if df.empty:
+        return None
+
+    entry_zeit = None
+    entry_preis = None
+    start_date = start.date()
+
+    for zeitpunkt, row in df.iterrows():
+        if (zeitpunkt.date() - start_date).days >= int(horizon_tage):
+            break
+        if zeitpunkt.date() == start_date and _minute_des_tages(zeitpunkt) < kauf_minute:
+            continue
+        entry_zeit = zeitpunkt
+        entry_preis = _zu_float(row.get("Close"))
+        break
+
+    if entry_zeit is None or entry_preis is None or entry_preis <= 0:
+        return None
+
+    for zeitpunkt, row in df.loc[df.index >= entry_zeit].iterrows():
+        haltedauer_tage = (zeitpunkt.date() - start_date).days + 1
+        if haltedauer_tage > int(horizon_tage):
+            break
+
+        high = _zu_float(row.get("High"))
+        low = _zu_float(row.get("Low"))
+        if high is None or low is None:
+            continue
+
+        if take_profit > 0 and high >= take_profit:
+            rendite = ((take_profit / entry_preis) - 1) * 100
+            return {
+                "Status": "Intraday abgeschlossen",
+                "Ergebnis": "Treffer",
+                "Treffer": 1,
+                "Erreicht am": zeitpunkt.strftime("%Y-%m-%d %H:%M"),
+                "Rendite %": round(rendite, 2),
+                "Haltedauer": haltedauer_tage,
+                "Buy-in Zeit": entry_zeit.strftime("%H:%M"),
+                "Exit Zeit": zeitpunkt.strftime("%H:%M"),
+            }
+
+        if stop_loss > 0 and low <= stop_loss:
+            rendite = ((stop_loss / entry_preis) - 1) * 100
+            return {
+                "Status": "Intraday abgeschlossen",
+                "Ergebnis": "Fehler",
+                "Treffer": 0,
+                "Erreicht am": zeitpunkt.strftime("%Y-%m-%d %H:%M"),
+                "Rendite %": round(rendite, 2),
+                "Haltedauer": haltedauer_tage,
+                "Buy-in Zeit": entry_zeit.strftime("%H:%M"),
+                "Exit Zeit": zeitpunkt.strftime("%H:%M"),
+            }
+
+    letzte_zeile = df.loc[df.index >= entry_zeit].tail(1)
+    if letzte_zeile.empty:
+        return None
+    letzter_zeitpunkt = letzte_zeile.index[-1]
+    letzter_close = _zu_float(letzte_zeile.iloc[-1].get("Close")) or entry_preis
+    rendite = ((letzter_close / entry_preis) - 1) * 100
+    return {
+        "Status": "Intraday Zeitablauf",
+        "Ergebnis": "Positiv" if rendite > 0 else "Negativ" if rendite < 0 else "Neutral",
+        "Treffer": 1 if rendite > 0 else 0 if rendite < 0 else None,
+        "Erreicht am": letzter_zeitpunkt.strftime("%Y-%m-%d %H:%M"),
+        "Rendite %": round(rendite, 2),
+        "Haltedauer": min(int(horizon_tage), (letzter_zeitpunkt.date() - start_date).days + 1),
+        "Buy-in Zeit": entry_zeit.strftime("%H:%M"),
+        "Exit Zeit": letzter_zeitpunkt.strftime("%H:%M"),
+    }
+
+
 def _bester_intraday_trade(tag):
     tag = tag.sort_index()
     if len(tag) < 2:
@@ -172,6 +288,14 @@ def _minute_des_tages(zeitpunkt):
 def _minute_zu_uhrzeit(minute):
     minute = int(max(0, min(23 * 60 + 59, minute)))
     return f"{minute // 60:02d}:{minute % 60:02d}"
+
+
+def _uhrzeit_zu_minute(uhrzeit):
+    try:
+        stunde, minute = str(uhrzeit).strip().split(":", 1)
+        return int(stunde) * 60 + int(minute[:2])
+    except Exception:
+        return None
 
 
 def _zu_float(wert):

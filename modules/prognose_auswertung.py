@@ -12,6 +12,7 @@ from modules.prognose_speicher import (
     _schreibe_json_datei
 )
 from modules.markt_daten import rechne_df_in_eur_um
+from modules.intraday_timing import werte_intraday_prognose_aus
 
 # =========================================================
 # 02_METADATEN / TAGESPRUEFUNG
@@ -85,13 +86,26 @@ def _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=3):
         kauf = zeile.get("Day Kauf", "NEIN")
         stop_loss = _zu_float(zeile.get("Day Stop Loss €", 0))
         take_profit = _zu_float(zeile.get("Day Take Profit €", 0))
+        buy_in_zeit = zeile.get("Day Buy-in Zeit", "")
     else:
         kauf = zeile.get("Swing Kauf", "NEIN")
         stop_loss = _zu_float(zeile.get("Swing Stop Loss €", 0))
         take_profit = _zu_float(zeile.get("Swing Take Profit €", 0))
+        buy_in_zeit = zeile.get("Swing Buy-in Zeit", "")
 
     if kauf != "JA":
         return {"Status": "Nicht bewertet", "Ergebnis": "", "Treffer": None, "Erreicht am": "", "Rendite %": 0.0, "Haltedauer": 0}
+
+    intraday = werte_intraday_prognose_aus(
+        ticker=ticker,
+        prognose_datum=prognose_datum,
+        kaufzeit=buy_in_zeit,
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        horizon_tage=horizon_tage,
+    )
+    if intraday:
+        return intraday
 
     # Wir prüfen ab dem Folgetag
     start = pd.to_datetime(prognose_datum) + pd.Timedelta(days=1)
@@ -197,9 +211,11 @@ def werte_prognosen_aus(datei_prognosen=DATEI_PROGNOSEN, datei_auswertung=DATEI_
             **basis,
             "Day Status": day["Status"], "Day Ergebnis": day["Ergebnis"], "Day Treffer": day["Treffer"],
             "Day Erreicht am": day["Erreicht am"], "Day Rendite %": day["Rendite %"], "Day Haltedauer": day["Haltedauer"],
+            "Day Tatsächliche Buy-in Zeit": day.get("Buy-in Zeit", ""), "Day Tatsächliche Exit Zeit": day.get("Exit Zeit", ""),
             
             "Swing Status": swing["Status"], "Swing Ergebnis": swing["Ergebnis"], "Swing Treffer": swing["Treffer"],
             "Swing Erreicht am": swing["Erreicht am"], "Swing Rendite %": swing["Rendite %"], "Swing Haltedauer": swing["Haltedauer"],
+            "Swing Tatsächliche Buy-in Zeit": swing.get("Buy-in Zeit", ""), "Swing Tatsächliche Exit Zeit": swing.get("Exit Zeit", ""),
         })
 
     df_aus = pd.DataFrame(auswertungen)

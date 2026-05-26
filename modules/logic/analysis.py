@@ -4,6 +4,7 @@ from modules.markt_daten import lade_kursdaten
 from modules.markt_statistik import berechne_marktstatistik
 from modules.saisonalitaet import berechne_saisonalitaet
 from modules.news_modul import berechne_news_score
+from modules.intraday_timing import lade_intraday_timing_fuer_ticker
 from modules.logic.trading import bewerte_signale
 from modules.markt_lage import berechne_marktlage
 
@@ -52,6 +53,8 @@ def berechne_vollstaendige_analyse(ticker_liste, zeitraum):
         ticker_clean = _normalisiere_ticker(ticker)
         land = land_mapping.get(ticker_clean, "")
         statistik["Land"] = land
+        intraday = lade_intraday_timing_fuer_ticker([ticker_clean]).get(ticker_clean, {})
+        statistik.update(intraday)
 
         saison = berechne_saisonalitaet(df)
         news = berechne_news_score(ticker_clean)

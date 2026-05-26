@@ -141,7 +141,7 @@ def _zeige_top_liste(df_region, markt, region):
             st.info("Keine Daytrading-Signale.")
         else:
             df_day_top = _ergaenze_intraday_timing(_sortiere_numerisch(df_day, "Day Score").head(5))
-            day_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Day Kauf", "Day Score", "Day CRV", "Day Netto €", "Intraday Beste Kaufzeit", "Intraday Beste Verkaufszeit", "Hist. Idealer Hold (Day)"]
+            day_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Day Kauf", "Day Score", "Day CRV", "Day Netto €", "Day Buy-in Zeit", "Day Take-Profit Zeit", "Hist. Idealer Hold (Day)"]
             day_cols = [c for c in day_cols if c in df_day_top.columns]
             st.dataframe(baue_styler(df_day_top[day_cols]), use_container_width=True, hide_index=True)
             
@@ -151,6 +151,6 @@ def _zeige_top_liste(df_region, markt, region):
             st.info("Keine Swingtrading-Signale.")
         else:
             df_swing_top = _ergaenze_intraday_timing(_sortiere_numerisch(df_swing, "Swing Score").head(5))
-            swing_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Swing Kauf", "Swing Score", "Swing CRV", "Swing Netto €", "Intraday Beste Kaufzeit", "Intraday Beste Verkaufszeit", "Saison-Score", "Hist. Idealer Hold (Swing)"]
+            swing_cols = ["Ticker", "Hist. Prognosegenauigkeit %", "Anzahl Hist. Prognosen", "Swing Kauf", "Swing Score", "Swing CRV", "Swing Netto €", "Swing Buy-in Zeit", "Swing Take-Profit Zeit", "Saison-Score", "Hist. Idealer Hold (Swing)"]
             swing_cols = [c for c in swing_cols if c in df_swing_top.columns]
             st.dataframe(baue_styler(df_swing_top[swing_cols]), use_container_width=True, hide_index=True)
