@@ -12,6 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from modules.logic.automation import check_automation_loop
 from modules.prognose_auswertung import fuehre_tagespruefung_aus
+from modules.prognose_speicher import hole_fixierungs_status
 
 
 WORKER_LOCK_PORT = 47651
@@ -37,12 +38,18 @@ def main():
     print(f"🚀 Trading-Tool Hintergrund-Wächter gestartet")
     print(f"🕒 Startzeit: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=========================================================")
+    letzter_status_log = None
     
     while True:
         try:
             fuehre_tagespruefung_aus()
             # Automatisierungs-Check ausführen
-            check_automation_loop()
+            fixiert = check_automation_loop()
+            status = hole_fixierungs_status() or {}
+            status_key = tuple(sorted(status.keys()))
+            if fixiert or status_key != letzter_status_log:
+                print(f"Fixierungsstatus heute: {status or 'noch keine Fixierung'}")
+                letzter_status_log = status_key
         except Exception as e:
             print(f"⚠️ Fehler im Hintergrund-Worker: {e}")
             

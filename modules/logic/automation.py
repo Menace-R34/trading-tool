@@ -21,6 +21,7 @@ from modules.region_logik import filtere_nach_region
 _worker_gestartet = False
 _worker_lock = threading.Lock()
 AUTOMATION_LOCK = Path("data/automation_check.lock")
+AUTOMATION_LOCK_MAX_AGE_SECONDS = 3 * 60 * 60
 
 def start_background_worker():
     """Startet den Hintergrund-Wächter in einem eigenen Thread, falls noch nicht geschehen."""
@@ -95,6 +96,10 @@ def _check_automation_loop_ohne_lock():
     if not einstellungen.get("auto_fix_aktiv", True):
         return []
 
+    heutige_fixierungen = hole_fixierungs_status() or {}
+    if all(region in heutige_fixierungen for region in ["Europa", "USA"]):
+        return []
+
     jetzt_be = _jetzt_berlin()
     jetzt_ny = _jetzt_new_york()
     
@@ -120,7 +125,7 @@ def _check_automation_loop_ohne_lock():
         region = plan["region"]
         jetzt = plan["jetzt"]
         
-        if hole_fixierungs_status(region):
+        if region in heutige_fixierungen:
             continue
             
         # Verhindert, dass nachts (z.B. 00:01 Berlin) aufgrund der NY-Zeit vom Vortag (18:01) fixiert wird.
@@ -131,12 +136,14 @@ def _check_automation_loop_ohne_lock():
             erfolg = führe_fixierung_durch(region, einstellungen.get("analyse_zeitraum", "1y"))
             if erfolg:
                 regionen_fixiert.append(region)
+                heutige_fixierungen[region] = True
                 
     return regionen_fixiert
 
 
 def _hole_automation_lock():
     AUTOMATION_LOCK.parent.mkdir(parents=True, exist_ok=True)
+    _entferne_verwaisten_automation_lock()
     try:
         return os.open(AUTOMATION_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
@@ -149,6 +156,20 @@ def _gib_automation_lock_frei(lock_fd):
         AUTOMATION_LOCK.unlink()
     except FileNotFoundError:
         pass
+
+
+def _entferne_verwaisten_automation_lock():
+    if not AUTOMATION_LOCK.exists():
+        return
+    try:
+        alter = time.time() - AUTOMATION_LOCK.stat().st_mtime
+    except OSError:
+        return
+    if alter > AUTOMATION_LOCK_MAX_AGE_SECONDS:
+        try:
+            AUTOMATION_LOCK.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def fuehre_automatische_fixierung_aus(session_state):

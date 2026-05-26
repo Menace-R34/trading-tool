@@ -19,6 +19,23 @@ from modules.markt_lage import berechne_marktlage
 from modules.ui.common import _prepare_df, _ergaenze_intraday_timing
 
 
+def _formatiere_fixierzeit(region):
+    if not st.session_state.get("auto_fix_aktiv", True):
+        return "Auto-Fix aus"
+
+    if region == "Europa":
+        offset = int(st.session_state.get("auto_fix_offset_eu", 20))
+        basis_minuten = 9 * 60
+        zeitzone = "Berlin"
+    else:
+        offset = int(st.session_state.get("auto_fix_offset_us", 20))
+        basis_minuten = 9 * 60 + 30
+        zeitzone = "New York"
+
+    minuten = (basis_minuten + offset) % (24 * 60)
+    return f"Auto-Fix ca. {minuten // 60:02d}:{minuten % 60:02d} Uhr ({zeitzone})"
+
+
 def _sortiere_numerisch(df, spalte, ascending=False):
     if spalte not in df.columns:
         return df
@@ -50,26 +67,30 @@ def seite_start():
     
     with status_col_1:
         fix_zeit_eu = hole_fixierungs_status("Europa")
+        zielzeit_eu = _formatiere_fixierzeit("Europa")
         if not df_eu_fixed.empty:
             msg = f"🇪🇺 **Europa:** Prognosen fixiert"
             if fix_zeit_eu: msg += f" ({fix_zeit_eu})"
+            msg += f" · {zielzeit_eu}"
             st.success(msg)
             df_eu = df_eu_fixed
         else:
-            st.warning(f"🇪🇺 **Europa:** Zeige Live-Daten (noch nicht fixiert)")
+            st.warning(f"🇪🇺 **Europa:** Zeige Live-Daten (noch nicht fixiert) · {zielzeit_eu}")
             with st.spinner("Lade EU Live-Daten..."):
                 df_all_live = baue_auswertung_fuer_ticker(tuple(ticker_liste), st.session_state["analyse_zeitraum"])
                 df_eu = filtere_nach_region(df_all_live, "Europa")
 
     with status_col_2:
         fix_zeit_us = hole_fixierungs_status("USA")
+        zielzeit_us = _formatiere_fixierzeit("USA")
         if not df_us_fixed.empty:
             msg = f"🇺🇸 **USA:** Prognosen fixiert"
             if fix_zeit_us: msg += f" ({fix_zeit_us})"
+            msg += f" · {zielzeit_us}"
             st.success(msg)
             df_us = df_us_fixed
         else:
-            st.warning(f"🇺🇸 **USA:** Zeige Live-Daten (noch nicht fixiert)")
+            st.warning(f"🇺🇸 **USA:** Zeige Live-Daten (noch nicht fixiert) · {zielzeit_us}")
             with st.spinner("Lade US Live-Daten..."):
                 if 'df_all_live' not in locals():
                     df_all_live = baue_auswertung_fuer_ticker(tuple(ticker_liste), st.session_state["analyse_zeitraum"])
