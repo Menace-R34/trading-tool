@@ -63,7 +63,12 @@ def main():
             with st.spinner("Fixiere alle Prognosen..."):
                 t_liste = hole_tickerliste_aus_universum()
                 df_fix = baue_auswertung_fuer_ticker(tuple(t_liste), st.session_state["analyse_zeitraum"])
-                speichere_prognosen(df_fix, hole_filter_settings_aus_session())
+                settings = hole_filter_settings_aus_session()
+                from modules.prognose_speicher import _zeitstempel_str, protokolliere_fixierung
+                settings["daten_geladen_zeitstempel"] = _zeitstempel_str()
+                speichere_prognosen(df_fix, settings)
+                protokolliere_fixierung("Europa")
+                protokolliere_fixierung("USA")
                 st.success("Prognosen fixiert!")
                 st.rerun()
 

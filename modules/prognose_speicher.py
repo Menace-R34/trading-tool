@@ -212,6 +212,7 @@ def speichere_prognosen(df_signale, settings=None, dateiname=DATEI_PROGNOSEN):
     df_export["Prognose-Datum"] = prognose_datum
     df_export["Prognose-Zeit"] = prognose_zeit
     df_export["Prognose-Zeitstempel"] = prognose_zeitstempel
+    df_export["Börsendaten geladen"] = settings.get("daten_geladen_zeitstempel", prognose_zeitstempel)
     df_export["Analysezeitraum"] = settings.get("analyse_zeitraum", "1y")
 
     # Snapshot der aktiven Filter / Standardwerte
@@ -332,6 +333,7 @@ def protokolliere_fixierung(region):
             
     heute = _heute_str()
     uhrzeit = _uhrzeit_str()
+    zeitstempel = _zeitstempel_str()
     
     if "fixierungen" not in meta:
         meta["fixierungen"] = {}
@@ -340,10 +342,16 @@ def protokolliere_fixierung(region):
         meta["fixierungen"][heute] = {}
         
     meta["fixierungen"][heute][region] = uhrzeit
+
+    if "fixierungs_zeitstempel" not in meta:
+        meta["fixierungs_zeitstempel"] = {}
+    if heute not in meta["fixierungs_zeitstempel"]:
+        meta["fixierungs_zeitstempel"][heute] = {}
+    meta["fixierungs_zeitstempel"][heute][region] = zeitstempel
     
     _schreibe_json_datei(DATEI_METADATEN, meta)
 
-def hole_fixierungs_status(region=None):
+def hole_fixierungs_status(region=None, datum=None, vollstaendig=False):
     """
     Gibt die Uhrzeit der heutigen Fixierung zurück.
     Falls region=None, wird das gesamte Dictionary für heute zurückgegeben.
@@ -357,8 +365,13 @@ def hole_fixierungs_status(region=None):
     except:
         return None
         
-    heute = _heute_str()
-    fix_heute = meta.get("fixierungen", {}).get(heute, {})
+    tag = datum or _heute_str()
+    quelle = "fixierungs_zeitstempel" if vollstaendig else "fixierungen"
+    fix_heute = meta.get(quelle, {}).get(tag, {})
+
+    if vollstaendig and not fix_heute:
+        alt = meta.get("fixierungen", {}).get(tag, {})
+        fix_heute = {reg: f"{tag} {zeit}" for reg, zeit in alt.items()}
     
     if region:
         return fix_heute.get(region)

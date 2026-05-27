@@ -67,6 +67,7 @@ def führe_fixierung_durch(region, zeitraum="1y"):
             
         # Filter-Einstellungen laden (für die Historien-Metadaten)
         einstellungen = lade_gespeicherte_standardwerte()
+        einstellungen["daten_geladen_zeitstempel"] = _zeitstempel_str()
         
         # Speichern
         speichere_prognosen(df_region, einstellungen)

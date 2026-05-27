@@ -9,7 +9,7 @@ from pathlib import Path
 from modules.prognose_speicher import (
     _lese_csv_sicher, _schreibe_csv, _heute_str, _jetzt_berlin,
     DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN, _zu_float,
-    _schreibe_json_datei
+    _schreibe_json_datei, _zeitstempel_str
 )
 from modules.markt_daten import rechne_df_in_eur_um
 from modules.intraday_timing import werte_intraday_prognose_aus
@@ -49,9 +49,17 @@ def fuehre_tagespruefung_aus(settings=None):
     horizon_day = int(settings.get("day_haltedauer", 3))
     horizon_swing = int(settings.get("swing_haltedauer", 10))
 
-    werte_prognosen_aus(horizon_day=horizon_day, horizon_swing=horizon_swing)
+    pruefung_zeitstempel = _zeitstempel_str()
+    werte_prognosen_aus(
+        horizon_day=horizon_day,
+        horizon_swing=horizon_swing,
+        pruefung_zeitstempel=pruefung_zeitstempel,
+    )
     
     meta["letzte_tagespruefung"] = heute
+    if "tagespruefungen" not in meta:
+        meta["tagespruefungen"] = {}
+    meta["tagespruefungen"][heute] = pruefung_zeitstempel
     _speichere_metadaten(meta)
     return True
 
@@ -187,10 +195,18 @@ def _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=3):
 # =========================================================
 # 04_ALLE_PROGNOSEN_AUSWERTEN
 # =========================================================
-def werte_prognosen_aus(datei_prognosen=DATEI_PROGNOSEN, datei_auswertung=DATEI_AUSWERTUNG, horizon_day=3, horizon_swing=10):
+def werte_prognosen_aus(
+    datei_prognosen=DATEI_PROGNOSEN,
+    datei_auswertung=DATEI_AUSWERTUNG,
+    horizon_day=3,
+    horizon_swing=10,
+    pruefung_zeitstempel=None,
+):
     df = _lese_csv_sicher(datei_prognosen)
     if df.empty:
         return pd.DataFrame()
+
+    pruefung_zeitstempel = pruefung_zeitstempel or _zeitstempel_str()
 
     # Wir überschreiben die Auswertung immer komplett um offene Trades fortzuführen.
     # Da yfinance gecached wird, ist es performant genug für eine tägliche Ausführung.
@@ -202,6 +218,7 @@ def werte_prognosen_aus(datei_prognosen=DATEI_PROGNOSEN, datei_auswertung=DATEI_
             "Prognose-Datum": zeile.get("Prognose-Datum", ""),
             "Prognose-Zeit": zeile.get("Prognose-Zeit", ""),
             "Prognose-Zeitstempel": zeile.get("Prognose-Zeitstempel", ""),
+            "Prognosekontrolle durchgeführt": pruefung_zeitstempel,
         }
         
         day = _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=horizon_day)

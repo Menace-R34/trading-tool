@@ -5,7 +5,7 @@ from modules.auswertung_builder import baue_auswertung_fuer_ticker
 from modules.logic.filter import filter_daytrading_kandidaten, filter_swingtrading_kandidaten
 from modules.ui_styling import baue_styler
 from modules.ui_hilfe import zeige_marktlage_box
-from modules.prognose_speicher import speichere_prognosen, lade_heutigen_snapshot
+from modules.prognose_speicher import speichere_prognosen, lade_heutigen_snapshot, protokolliere_fixierung
 from modules.prognose_speicher import _zeitstempel_str
 from modules.markt_lage import berechne_marktlage
 from modules.ui_einstellungen import hole_filter_settings_aus_session
@@ -168,7 +168,9 @@ def _darstellung_regionen_seite(region):
         else:
             if st.button(f"Diese Signale für {region} jetzt fixieren"):
                 settings = hole_filter_settings_aus_session()
+                settings["daten_geladen_zeitstempel"] = _zeitstempel_str()
                 speichere_prognosen(df_region, settings)
+                protokolliere_fixierung(region)
                 st.success("Prognosen erfolgreich fixiert!")
                 st.rerun()
             

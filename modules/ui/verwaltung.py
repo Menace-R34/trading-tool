@@ -1,11 +1,13 @@
 import streamlit as st
 import datetime
+import pandas as pd
 from modules.prognose_speicher import (
     lade_prognosehistorie,
     speichere_standardwerte,
     loesche_historische_daten,
     _zeitstempel_str,
     _jetzt_berlin,
+    hole_fixierungs_status,
     liste_backups_auf,
     loesche_alte_backups,
     stelle_backup_wieder_her
@@ -20,6 +22,7 @@ from modules.ui_einstellungen import (
     hole_filter_settings_aus_session
 )
 from modules.ui_styling import baue_styler
+from modules.region_logik import filtere_nach_region
 
 def seite_prognosekontrolle():
     st.subheader("Prognosekontrolle")
@@ -36,6 +39,8 @@ def seite_prognosekontrolle():
     col1.metric("Day Trefferquote", f"{statistik['Day Trefferquote %']}%", f"{statistik['Day Anzahl']} Prognosen")
     col2.metric("Swing Trefferquote", f"{statistik['Swing Trefferquote %']}%", f"{statistik['Swing Anzahl']} Prognosen")
 
+    _zeige_zeitprotokoll(df_hist)
+
     spalten = [
         "Prognose-Datum", "Prognose-Zeit", "Ticker", 
         "Day Kauf", "Day Treffer", "Day Erreicht am",
@@ -44,6 +49,66 @@ def seite_prognosekontrolle():
     ]
     spalten = [sp for sp in spalten if sp in df_hist.columns]
     st.dataframe(baue_styler(df_hist[spalten]), use_container_width=True, hide_index=True)
+
+
+def _zeige_zeitprotokoll(df_hist):
+    st.markdown("#### Zeitprotokoll")
+
+    if "Land" not in df_hist.columns:
+        st.info("Für das Zeitprotokoll fehlt in den historischen Daten die Spalte `Land`.")
+        return
+
+    for region in ["Europa", "USA"]:
+        df_region = filtere_nach_region(df_hist, region)
+        tabelle = _baue_zeitprotokoll_tabelle(df_region, region)
+        st.markdown(f"**{region}**")
+        if tabelle.empty:
+            st.info(f"Für {region} sind noch keine Zeitdaten vorhanden.")
+        else:
+            st.dataframe(tabelle, use_container_width=True, hide_index=True)
+
+
+def _baue_zeitprotokoll_tabelle(df_region, region):
+    if df_region.empty:
+        return pd.DataFrame()
+
+    benoetigt = ["Prognose-Datum", "Prognose-Zeitstempel"]
+    if any(spalte not in df_region.columns for spalte in benoetigt):
+        return pd.DataFrame()
+
+    gruppen = df_region.copy()
+    gruppen["Prognose-Zeitstempel"] = gruppen["Prognose-Zeitstempel"].fillna("")
+    gruppen = gruppen[gruppen["Prognose-Zeitstempel"].astype(str).str.strip() != ""]
+    if gruppen.empty:
+        return pd.DataFrame()
+
+    zeilen = []
+    for (datum, prognose_zeitstempel), gruppe in gruppen.groupby(["Prognose-Datum", "Prognose-Zeitstempel"], sort=False):
+        daten_geladen = _erster_wert(gruppe, "Börsendaten geladen") or prognose_zeitstempel
+        prognosekontrolle = _erster_wert(gruppe, "Prognosekontrolle durchgeführt")
+        fixierung = hole_fixierungs_status(region=region, datum=str(datum), vollstaendig=True) or ""
+
+        zeilen.append({
+            "Prognose-Datum": datum,
+            "Prognose erstellt": prognose_zeitstempel,
+            "Fixierung erstellt": fixierung,
+            "Börsendaten heruntergeladen": daten_geladen,
+            "Prognosekontrolle durchgeführt": prognosekontrolle or "",
+            "Werte": int(gruppe["Ticker"].nunique()) if "Ticker" in gruppe.columns else int(len(gruppe)),
+        })
+
+    ergebnis = pd.DataFrame(zeilen)
+    if ergebnis.empty:
+        return ergebnis
+    return ergebnis.sort_values("Prognose erstellt", ascending=False).reset_index(drop=True)
+
+
+def _erster_wert(df, spalte):
+    if spalte not in df.columns:
+        return ""
+    werte = df[spalte].dropna().astype(str).str.strip()
+    werte = werte[werte != ""]
+    return werte.iloc[0] if not werte.empty else ""
 
 def seite_einstellungen():
     st.subheader("⚙️ Systemeinstellungen")
