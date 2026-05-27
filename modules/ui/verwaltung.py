@@ -72,7 +72,7 @@ def _zeige_zeitprotokoll(df_auswertung):
         if tabelle.empty:
             st.info(f"Für {region} sind noch keine Zeitdaten vorhanden.")
         else:
-            st.dataframe(tabelle, use_container_width=True, hide_index=True)
+            st.dataframe(tabelle, use_container_width=True, hide_index=True, height=150)
 
 
 def _baue_zeitprotokoll_tabelle(df_region, region, df_auswertung):
