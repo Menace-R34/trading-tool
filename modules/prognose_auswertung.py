@@ -8,15 +8,15 @@ from pathlib import Path
 
 from modules.prognose_speicher import (
     _lese_csv_sicher, _schreibe_csv, _heute_str, _jetzt_berlin,
-    _jetzt_new_york, DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN,
-    _zu_float, _schreibe_json_datei, _zeitstempel_str
+    DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN, _zu_float,
+    _schreibe_json_datei, _zeitstempel_str
 )
 from modules.markt_daten import rechne_df_in_eur_um
 from modules.intraday_timing import werte_intraday_prognose_aus
 from modules.region_logik import bestimme_region
 
 
-KONTROLL_DELAY_MINUTEN = 30
+KONTROLL_START_STUNDE = 5
 
 # =========================================================
 # 02_METADATEN / TAGESPRUEFUNG
@@ -35,13 +35,13 @@ def _speichere_metadaten(daten):
 
 def fuehre_tagespruefung_aus(settings=None):
     """
-    Prüft Prognosen erst nach Börsenschluss der jeweiligen Region.
+    Prüft Prognosen von Vortagen ab 05:00 Uhr deutscher Zeit.
     """
     heute = _heute_str()
     meta = _lade_metadaten()
 
-    faellige_regionen = _faellige_kontrollregionen(meta, heute)
-    if not faellige_regionen and not _zeitprotokoll_nachtrag_noetig():
+    kontrolle_faellig = _kontrolle_heute_faellig(meta, heute)
+    if not kontrolle_faellig and not _zeitprotokoll_nachtrag_noetig():
         return False
     
     if settings is None:
@@ -56,7 +56,7 @@ def fuehre_tagespruefung_aus(settings=None):
         horizon_day=horizon_day,
         horizon_swing=horizon_swing,
         pruefung_zeitstempel=pruefung_zeitstempel,
-        faellige_regionen=faellige_regionen,
+        kontrolle_faellig=kontrolle_faellig,
     )
     
     meta["letzte_tagespruefung"] = heute
@@ -67,32 +67,23 @@ def fuehre_tagespruefung_aus(settings=None):
         meta["prognosekontrollen"] = {}
     if heute not in meta["prognosekontrollen"]:
         meta["prognosekontrollen"][heute] = {}
-    for region in faellige_regionen:
-        meta["prognosekontrollen"][heute][region] = pruefung_zeitstempel
+    if kontrolle_faellig:
+        meta["prognosekontrollen"][heute]["Alle"] = pruefung_zeitstempel
     _speichere_metadaten(meta)
     return True
 
 
-def _faellige_kontrollregionen(meta, datum):
+def _kontrolle_heute_faellig(meta, datum):
     kontrollen = meta.get("prognosekontrollen", {}).get(datum, {})
-    faellig = []
-
+    if "Alle" in kontrollen:
+        return False
     jetzt_berlin = _jetzt_berlin()
-    eu_schluss = 17 * 60 + 30 + KONTROLL_DELAY_MINUTEN
-    minuten_berlin = jetzt_berlin.hour * 60 + jetzt_berlin.minute
-    if "Europa" not in kontrollen and minuten_berlin >= eu_schluss:
-        faellig.append("Europa")
-
-    jetzt_ny = _jetzt_new_york()
-    us_schluss = 16 * 60 + KONTROLL_DELAY_MINUTEN
-    minuten_ny = jetzt_ny.hour * 60 + jetzt_ny.minute
-    if "USA" not in kontrollen and minuten_ny >= us_schluss:
-        faellig.append("USA")
-
-    return faellig
+    return jetzt_berlin.hour >= KONTROLL_START_STUNDE
 
 
 def _zeitprotokoll_nachtrag_noetig():
+    if _jetzt_berlin().hour < KONTROLL_START_STUNDE:
+        return False
     df_auswertung = _lese_csv_sicher(DATEI_AUSWERTUNG)
     if df_auswertung.empty:
         return False
@@ -247,14 +238,13 @@ def werte_prognosen_aus(
     horizon_day=3,
     horizon_swing=10,
     pruefung_zeitstempel=None,
-    faellige_regionen=None,
+    kontrolle_faellig=False,
 ):
     df = _lese_csv_sicher(datei_prognosen)
     if df.empty:
         return pd.DataFrame()
 
     pruefung_zeitstempel = pruefung_zeitstempel or _zeitstempel_str()
-    faellige_regionen = set(faellige_regionen or [])
 
     # Wir überschreiben die Auswertung immer komplett um offene Trades fortzuführen.
     # Da yfinance gecached wird, ist es performant genug für eine tägliche Ausführung.
@@ -263,8 +253,8 @@ def werte_prognosen_aus(
     for _, zeile in df.iterrows():
         prognose_datum = str(zeile.get("Prognose-Datum", "")).strip()
         region = bestimme_region(zeile.get("Land", ""))
-        kontrolle_faellig = _kontrolle_fuer_zeile_faellig(prognose_datum, region, faellige_regionen)
-        kontrolle_zeitstempel = pruefung_zeitstempel if kontrolle_faellig else ""
+        zeile_faellig = _kontrolle_fuer_zeile_faellig(prognose_datum, region, kontrolle_faellig)
+        kontrolle_zeitstempel = pruefung_zeitstempel if zeile_faellig else ""
         basis = {
             "Ticker": zeile.get("Ticker", ""),
             "Prognose-Datum": prognose_datum,
@@ -277,7 +267,7 @@ def werte_prognosen_aus(
             zeile,
             strategie="day",
             horizon_tage=horizon_day,
-            kontrolle_am_selben_tag=kontrolle_faellig and prognose_datum == _heute_str(),
+            kontrolle_am_selben_tag=False,
         )
         swing = _werte_einzelprognose_aus(
             zeile,
@@ -315,12 +305,10 @@ def werte_prognosen_aus(
     return kombi
 
 
-def _kontrolle_fuer_zeile_faellig(prognose_datum, region, faellige_regionen):
+def _kontrolle_fuer_zeile_faellig(prognose_datum, region, kontrolle_faellig):
     if not prognose_datum or region not in {"Europa", "USA"}:
         return False
-    if prognose_datum < _heute_str():
-        return True
-    if prognose_datum == _heute_str() and region in faellige_regionen:
+    if kontrolle_faellig and prognose_datum < _heute_str():
         return True
     return False
 

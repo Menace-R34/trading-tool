@@ -119,9 +119,7 @@ def _erster_wert(df, spalte):
 
 
 def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, region, prognose_datum, prognose_zeitstempel):
-    if str(prognose_datum) > _jetzt_berlin().strftime("%Y-%m-%d"):
-        return ""
-    if str(prognose_datum) == _jetzt_berlin().strftime("%Y-%m-%d") and not _region_nach_boersenschluss(region):
+    if str(prognose_datum) >= _jetzt_berlin().strftime("%Y-%m-%d"):
         return ""
     if df_auswertung.empty or "Prognosekontrolle durchgeführt" not in df_auswertung.columns:
         return ""
@@ -137,18 +135,6 @@ def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, region, prognose_datum, 
         auswahl = auswahl[auswahl["Ticker"].astype(str).isin(ticker)]
 
     return _erster_wert(auswahl, "Prognosekontrolle durchgeführt")
-
-
-def _region_nach_boersenschluss(region):
-    from modules.prognose_auswertung import KONTROLL_DELAY_MINUTEN
-    if region == "Europa":
-        jetzt = _jetzt_berlin()
-        return jetzt.hour * 60 + jetzt.minute >= 17 * 60 + 30 + KONTROLL_DELAY_MINUTEN
-    if region == "USA":
-        from modules.prognose_speicher import _jetzt_new_york
-        jetzt = _jetzt_new_york()
-        return jetzt.hour * 60 + jetzt.minute >= 16 * 60 + KONTROLL_DELAY_MINUTEN
-    return False
 
 def seite_einstellungen():
     st.subheader("⚙️ Systemeinstellungen")
