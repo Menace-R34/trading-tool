@@ -38,7 +38,7 @@ def fuehre_tagespruefung_aus(settings=None):
     meta = _lade_metadaten()
 
     letzte_pruefung = meta.get("letzte_tagespruefung", "")
-    if letzte_pruefung == heute:
+    if letzte_pruefung == heute and not _zeitprotokoll_nachtrag_noetig():
         # Heute schon geprüft
         return False
     
@@ -62,6 +62,17 @@ def fuehre_tagespruefung_aus(settings=None):
     meta["tagespruefungen"][heute] = pruefung_zeitstempel
     _speichere_metadaten(meta)
     return True
+
+
+def _zeitprotokoll_nachtrag_noetig():
+    df_auswertung = _lese_csv_sicher(DATEI_AUSWERTUNG)
+    if df_auswertung.empty:
+        return False
+    if "Prognosekontrolle durchgeführt" not in df_auswertung.columns:
+        return True
+
+    werte = df_auswertung["Prognosekontrolle durchgeführt"].dropna().astype(str).str.strip()
+    return werte.empty or (werte == "").all()
 
 # =========================================================
 # 03_EINZELPROGNOSE AUSWERTEN
