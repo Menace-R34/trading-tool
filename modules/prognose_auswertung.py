@@ -224,12 +224,14 @@ def werte_prognosen_aus(
     auswertungen = []
     
     for _, zeile in df.iterrows():
+        prognose_datum = str(zeile.get("Prognose-Datum", "")).strip()
+        kontrolle_zeitstempel = pruefung_zeitstempel if prognose_datum and prognose_datum < _heute_str() else ""
         basis = {
             "Ticker": zeile.get("Ticker", ""),
-            "Prognose-Datum": zeile.get("Prognose-Datum", ""),
+            "Prognose-Datum": prognose_datum,
             "Prognose-Zeit": zeile.get("Prognose-Zeit", ""),
             "Prognose-Zeitstempel": zeile.get("Prognose-Zeitstempel", ""),
-            "Prognosekontrolle durchgeführt": pruefung_zeitstempel,
+            "Prognosekontrolle durchgeführt": kontrolle_zeitstempel,
         }
         
         day = _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=horizon_day)

@@ -92,7 +92,7 @@ def _baue_zeitprotokoll_tabelle(df_region, region, df_auswertung):
     zeilen = []
     for (datum, prognose_zeitstempel), gruppe in gruppen.groupby(["Prognose-Datum", "Prognose-Zeitstempel"], sort=False):
         daten_geladen = _erster_wert(gruppe, "Börsendaten geladen") or prognose_zeitstempel
-        prognosekontrolle = _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_zeitstempel)
+        prognosekontrolle = _hole_prognosekontrolle_zeit(df_auswertung, gruppe, str(datum), prognose_zeitstempel)
         fixierung = hole_fixierungs_status(region=region, datum=str(datum), vollstaendig=True) or ""
 
         zeilen.append({
@@ -118,7 +118,9 @@ def _erster_wert(df, spalte):
     return werte.iloc[0] if not werte.empty else ""
 
 
-def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_zeitstempel):
+def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_datum, prognose_zeitstempel):
+    if str(prognose_datum) >= _jetzt_berlin().strftime("%Y-%m-%d"):
+        return ""
     if df_auswertung.empty or "Prognosekontrolle durchgeführt" not in df_auswertung.columns:
         return ""
     if "Prognose-Zeitstempel" not in df_auswertung.columns:
