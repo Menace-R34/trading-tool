@@ -92,7 +92,7 @@ def _baue_zeitprotokoll_tabelle(df_region, region, df_auswertung):
     zeilen = []
     for (datum, prognose_zeitstempel), gruppe in gruppen.groupby(["Prognose-Datum", "Prognose-Zeitstempel"], sort=False):
         daten_geladen = _erster_wert(gruppe, "Börsendaten geladen") or prognose_zeitstempel
-        prognosekontrolle = _hole_prognosekontrolle_zeit(df_auswertung, gruppe, str(datum), prognose_zeitstempel)
+        prognosekontrolle = _hole_prognosekontrolle_zeit(df_auswertung, gruppe, region, str(datum), prognose_zeitstempel)
         fixierung = hole_fixierungs_status(region=region, datum=str(datum), vollstaendig=True) or ""
 
         zeilen.append({
@@ -118,8 +118,10 @@ def _erster_wert(df, spalte):
     return werte.iloc[0] if not werte.empty else ""
 
 
-def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_datum, prognose_zeitstempel):
-    if str(prognose_datum) >= _jetzt_berlin().strftime("%Y-%m-%d"):
+def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, region, prognose_datum, prognose_zeitstempel):
+    if str(prognose_datum) > _jetzt_berlin().strftime("%Y-%m-%d"):
+        return ""
+    if str(prognose_datum) == _jetzt_berlin().strftime("%Y-%m-%d") and not _region_nach_boersenschluss(region):
         return ""
     if df_auswertung.empty or "Prognosekontrolle durchgeführt" not in df_auswertung.columns:
         return ""
@@ -135,6 +137,18 @@ def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_datum, prognose
         auswahl = auswahl[auswahl["Ticker"].astype(str).isin(ticker)]
 
     return _erster_wert(auswahl, "Prognosekontrolle durchgeführt")
+
+
+def _region_nach_boersenschluss(region):
+    from modules.prognose_auswertung import KONTROLL_DELAY_MINUTEN
+    if region == "Europa":
+        jetzt = _jetzt_berlin()
+        return jetzt.hour * 60 + jetzt.minute >= 17 * 60 + 30 + KONTROLL_DELAY_MINUTEN
+    if region == "USA":
+        from modules.prognose_speicher import _jetzt_new_york
+        jetzt = _jetzt_new_york()
+        return jetzt.hour * 60 + jetzt.minute >= 16 * 60 + KONTROLL_DELAY_MINUTEN
+    return False
 
 def seite_einstellungen():
     st.subheader("⚙️ Systemeinstellungen")

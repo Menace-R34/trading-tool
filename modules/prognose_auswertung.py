@@ -8,11 +8,15 @@ from pathlib import Path
 
 from modules.prognose_speicher import (
     _lese_csv_sicher, _schreibe_csv, _heute_str, _jetzt_berlin,
-    DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN, _zu_float,
-    _schreibe_json_datei, _zeitstempel_str
+    _jetzt_new_york, DATEI_PROGNOSEN, DATEI_AUSWERTUNG, DATEI_METADATEN,
+    _zu_float, _schreibe_json_datei, _zeitstempel_str
 )
 from modules.markt_daten import rechne_df_in_eur_um
 from modules.intraday_timing import werte_intraday_prognose_aus
+from modules.region_logik import bestimme_region
+
+
+KONTROLL_DELAY_MINUTEN = 30
 
 # =========================================================
 # 02_METADATEN / TAGESPRUEFUNG
@@ -31,15 +35,13 @@ def _speichere_metadaten(daten):
 
 def fuehre_tagespruefung_aus(settings=None):
     """
-    Soll einmal pro Tag aufgerufen werden (z.B. beim Start).
-    Prüft alle bisher nicht endgültig bewerteten Prognosen der *Vortage*.
+    Prüft Prognosen erst nach Börsenschluss der jeweiligen Region.
     """
     heute = _heute_str()
     meta = _lade_metadaten()
 
-    letzte_pruefung = meta.get("letzte_tagespruefung", "")
-    if letzte_pruefung == heute and not _zeitprotokoll_nachtrag_noetig():
-        # Heute schon geprüft
+    faellige_regionen = _faellige_kontrollregionen(meta, heute)
+    if not faellige_regionen and not _zeitprotokoll_nachtrag_noetig():
         return False
     
     if settings is None:
@@ -54,20 +56,50 @@ def fuehre_tagespruefung_aus(settings=None):
         horizon_day=horizon_day,
         horizon_swing=horizon_swing,
         pruefung_zeitstempel=pruefung_zeitstempel,
+        faellige_regionen=faellige_regionen,
     )
     
     meta["letzte_tagespruefung"] = heute
     if "tagespruefungen" not in meta:
         meta["tagespruefungen"] = {}
     meta["tagespruefungen"][heute] = pruefung_zeitstempel
+    if "prognosekontrollen" not in meta:
+        meta["prognosekontrollen"] = {}
+    if heute not in meta["prognosekontrollen"]:
+        meta["prognosekontrollen"][heute] = {}
+    for region in faellige_regionen:
+        meta["prognosekontrollen"][heute][region] = pruefung_zeitstempel
     _speichere_metadaten(meta)
     return True
+
+
+def _faellige_kontrollregionen(meta, datum):
+    kontrollen = meta.get("prognosekontrollen", {}).get(datum, {})
+    faellig = []
+
+    jetzt_berlin = _jetzt_berlin()
+    eu_schluss = 17 * 60 + 30 + KONTROLL_DELAY_MINUTEN
+    minuten_berlin = jetzt_berlin.hour * 60 + jetzt_berlin.minute
+    if "Europa" not in kontrollen and minuten_berlin >= eu_schluss:
+        faellig.append("Europa")
+
+    jetzt_ny = _jetzt_new_york()
+    us_schluss = 16 * 60 + KONTROLL_DELAY_MINUTEN
+    minuten_ny = jetzt_ny.hour * 60 + jetzt_ny.minute
+    if "USA" not in kontrollen and minuten_ny >= us_schluss:
+        faellig.append("USA")
+
+    return faellig
 
 
 def _zeitprotokoll_nachtrag_noetig():
     df_auswertung = _lese_csv_sicher(DATEI_AUSWERTUNG)
     if df_auswertung.empty:
         return False
+    if "Prognose-Datum" in df_auswertung.columns:
+        df_auswertung = df_auswertung[df_auswertung["Prognose-Datum"].astype(str) < _heute_str()]
+        if df_auswertung.empty:
+            return False
     if "Prognosekontrolle durchgeführt" not in df_auswertung.columns:
         return True
 
@@ -94,7 +126,7 @@ def _lade_kursdaten_fuer_auswertung(ticker, start_datum, end_datum=None):
     except Exception:
         return pd.DataFrame()
 
-def _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=3):
+def _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=3, kontrolle_am_selben_tag=False):
     ticker = zeile.get("Ticker", "")
     prognose_datum = zeile.get("Prognose-Datum", "")
 
@@ -122,12 +154,15 @@ def _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=3):
         stop_loss=stop_loss,
         take_profit=take_profit,
         horizon_tage=horizon_tage,
+        erlaube_heute=kontrolle_am_selben_tag,
     )
     if intraday:
         return intraday
 
-    # Wir prüfen ab dem Folgetag
-    start = pd.to_datetime(prognose_datum) + pd.Timedelta(days=1)
+    # Daytrading-Prognosen können nach Börsenschluss am selben Tag kontrolliert werden.
+    start = pd.to_datetime(prognose_datum)
+    if not kontrolle_am_selben_tag:
+        start = start + pd.Timedelta(days=1)
     
     # Wenn heute <= prognose_datum, noch nicht prüfen (nur Folgetage)
     if start.strftime("%Y-%m-%d") > _heute_str():
@@ -212,12 +247,14 @@ def werte_prognosen_aus(
     horizon_day=3,
     horizon_swing=10,
     pruefung_zeitstempel=None,
+    faellige_regionen=None,
 ):
     df = _lese_csv_sicher(datei_prognosen)
     if df.empty:
         return pd.DataFrame()
 
     pruefung_zeitstempel = pruefung_zeitstempel or _zeitstempel_str()
+    faellige_regionen = set(faellige_regionen or [])
 
     # Wir überschreiben die Auswertung immer komplett um offene Trades fortzuführen.
     # Da yfinance gecached wird, ist es performant genug für eine tägliche Ausführung.
@@ -225,7 +262,9 @@ def werte_prognosen_aus(
     
     for _, zeile in df.iterrows():
         prognose_datum = str(zeile.get("Prognose-Datum", "")).strip()
-        kontrolle_zeitstempel = pruefung_zeitstempel if prognose_datum and prognose_datum < _heute_str() else ""
+        region = bestimme_region(zeile.get("Land", ""))
+        kontrolle_faellig = _kontrolle_fuer_zeile_faellig(prognose_datum, region, faellige_regionen)
+        kontrolle_zeitstempel = pruefung_zeitstempel if kontrolle_faellig else ""
         basis = {
             "Ticker": zeile.get("Ticker", ""),
             "Prognose-Datum": prognose_datum,
@@ -234,8 +273,18 @@ def werte_prognosen_aus(
             "Prognosekontrolle durchgeführt": kontrolle_zeitstempel,
         }
         
-        day = _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=horizon_day)
-        swing = _werte_einzelprognose_aus(zeile, strategie="swing", horizon_tage=horizon_swing)
+        day = _werte_einzelprognose_aus(
+            zeile,
+            strategie="day",
+            horizon_tage=horizon_day,
+            kontrolle_am_selben_tag=kontrolle_faellig and prognose_datum == _heute_str(),
+        )
+        swing = _werte_einzelprognose_aus(
+            zeile,
+            strategie="swing",
+            horizon_tage=horizon_swing,
+            kontrolle_am_selben_tag=False,
+        )
 
         auswertungen.append({
             **basis,
@@ -264,6 +313,16 @@ def werte_prognosen_aus(
 
     _schreibe_csv(kombi, datei_auswertung)
     return kombi
+
+
+def _kontrolle_fuer_zeile_faellig(prognose_datum, region, faellige_regionen):
+    if not prognose_datum or region not in {"Europa", "USA"}:
+        return False
+    if prognose_datum < _heute_str():
+        return True
+    if prognose_datum == _heute_str() and region in faellige_regionen:
+        return True
+    return False
 
 # =========================================================
 # 05_STATISTIKEN & GENAUIGKEIT

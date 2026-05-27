@@ -109,15 +109,20 @@ def werte_intraday_prognose_aus(
     take_profit,
     horizon_tage=3,
     interval="15m",
+    erlaube_heute=False,
 ):
     if not ticker or not prognose_datum or not kaufzeit:
         return None
 
     start = pd.to_datetime(prognose_datum)
-    if start.strftime("%Y-%m-%d") >= _jetzt_berlin().strftime("%Y-%m-%d"):
+    if start.strftime("%Y-%m-%d") > _jetzt_berlin().strftime("%Y-%m-%d"):
+        return None
+    if start.strftime("%Y-%m-%d") == _jetzt_berlin().strftime("%Y-%m-%d") and not erlaube_heute:
         return None
 
     ende = start + pd.Timedelta(days=int(horizon_tage) + 2)
+    if start.strftime("%Y-%m-%d") == _jetzt_berlin().strftime("%Y-%m-%d"):
+        ende = start + pd.Timedelta(days=1)
 
     try:
         df = yf.download(
