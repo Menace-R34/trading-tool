@@ -5,6 +5,7 @@ from modules.prognose_speicher import (
     speichere_standardwerte,
     loesche_historische_daten,
     _zeitstempel_str,
+    _jetzt_berlin,
     liste_backups_auf,
     loesche_alte_backups,
     stelle_backup_wieder_her
@@ -23,7 +24,7 @@ from modules.ui_styling import baue_styler
 def seite_prognosekontrolle():
     st.subheader("Prognosekontrolle")
     st.write("Historische Auswertung der Treffersicherheit.")
-    st.caption(f"Letzte Aktualisierung: {_zeitstempel_str()}")
+    st.caption(f"Letzte Aktualisierung: {_zeitstempel_str()} deutsche Zeit")
 
     df_hist = lade_prognosehistorie()
     if df_hist.empty:
@@ -150,8 +151,9 @@ def seite_einstellungen():
             st.divider()
             st.markdown("**🗑️ Daten bereinigen**")
             col_d1, col_d2 = st.columns(2)
-            von = col_d1.date_input("Von", datetime.date.today() - datetime.timedelta(days=30))
-            bis = col_d2.date_input("Bis", datetime.date.today())
+            heute_de = _jetzt_berlin().date()
+            von = col_d1.date_input("Von", heute_de - datetime.timedelta(days=30))
+            bis = col_d2.date_input("Bis", heute_de)
             if st.button("Ausgewählte Periode löschen", use_container_width=True, type="secondary"):
                 ergebnis = loesche_historische_daten(von, bis)
                 if ergebnis["geloescht"] > 0:

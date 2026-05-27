@@ -14,7 +14,7 @@ from modules.ui.common import _prepare_df
 def seite_marktueberblick():
     st.subheader("Marktüberblick")
     st.write("Gesamtübersicht aller ausgewerteten Werte.")
-    st.caption(f"Letzte Aktualisierung: {_zeitstempel_str()}")
+    st.caption(f"Letzte Aktualisierung: {_zeitstempel_str()} deutsche Zeit")
 
     ticker_liste = hole_tickerliste_aus_universum()
     if not ticker_liste:
@@ -71,7 +71,7 @@ def seite_marktueberblick():
 def seite_signale():
     st.subheader("Signale")
     st.write("Konsolidierte Signalübersicht nach Handelsregionen.")
-    st.caption(f"Letzte Aktualisierung: {_zeitstempel_str()}")
+    st.caption(f"Letzte Aktualisierung: {_zeitstempel_str()} deutsche Zeit")
 
     nur_kandidaten = st.toggle(
         "Nur echte Kandidaten verwenden",

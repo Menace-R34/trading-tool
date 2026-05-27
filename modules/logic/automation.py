@@ -1,6 +1,5 @@
 import threading
 import time
-import datetime
 import os
 import pandas as pd
 from pathlib import Path
@@ -11,7 +10,8 @@ from modules.prognose_speicher import (
     hole_fixierungs_status,
     lade_gespeicherte_standardwerte,
     _jetzt_berlin,
-    _jetzt_new_york
+    _jetzt_new_york,
+    _zeitstempel_str
 )
 from modules.universum import hole_tickerliste_aus_universum
 from modules.logic.analysis import berechne_vollstaendige_analyse
@@ -49,7 +49,7 @@ def führe_fixierung_durch(region, zeitraum="1y"):
     Führt die eigentliche Fixierung für eine Region durch.
     Holt frische Daten und speichert sie.
     """
-    print(f"[{datetime.datetime.now()}] Starte Fixierung für {region}...")
+    print(f"[{_zeitstempel_str()} deutsche Zeit] Starte Fixierung für {region}...")
     
     ticker_liste = hole_tickerliste_aus_universum()
     if not ticker_liste:

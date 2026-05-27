@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 
 import requests
 
+from modules.prognose_speicher import _zeitstempel_str
+
 
 # =========================================================
 # 02_KONSTANTEN
@@ -92,7 +94,7 @@ SEKTOR_REGELN = {
 # 04_HILFSFUNKTIONEN
 # =========================================================
 def _zeitstempel():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return _zeitstempel_str()
 
 
 def _sichere_liste(value):

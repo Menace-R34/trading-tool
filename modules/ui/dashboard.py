@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import datetime
 from modules.region_logik import filtere_nach_region
 from modules.universum import hole_tickerliste_aus_universum
 from modules.auswertung_builder import baue_auswertung_fuer_ticker
@@ -13,7 +14,10 @@ from modules.prognose_auswertung import (
 from modules.prognose_speicher import (
     lade_heutigen_snapshot,
     hole_fixierungs_status,
-    _zeitstempel_str
+    _zeitstempel_str,
+    _jetzt_berlin,
+    ZEITZONE_BERLIN,
+    ZEITZONE_NEW_YORK
 )
 from modules.markt_lage import berechne_marktlage
 from modules.ui.common import _prepare_df, _ergaenze_intraday_timing
@@ -25,15 +29,24 @@ def _formatiere_fixierzeit(region):
 
     if region == "Europa":
         offset = int(st.session_state.get("auto_fix_offset_eu", 20))
-        basis_minuten = 9 * 60
-        zeitzone = "Berlin"
+        basis = datetime.datetime.combine(
+            _jetzt_berlin().date(),
+            datetime.time(9, 0),
+            tzinfo=ZEITZONE_BERLIN,
+        )
+        boerse = "Xetra 09:00"
     else:
         offset = int(st.session_state.get("auto_fix_offset_us", 20))
-        basis_minuten = 9 * 60 + 30
-        zeitzone = "New York"
+        jetzt_berlin = _jetzt_berlin()
+        basis = datetime.datetime.combine(
+            jetzt_berlin.astimezone(ZEITZONE_NEW_YORK).date(),
+            datetime.time(9, 30),
+            tzinfo=ZEITZONE_NEW_YORK,
+        )
+        boerse = "NYSE/Nasdaq 09:30"
 
-    minuten = (basis_minuten + offset) % (24 * 60)
-    return f"Auto-Fix ca. {minuten // 60:02d}:{minuten % 60:02d} Uhr ({zeitzone})"
+    ziel_berlin = (basis + datetime.timedelta(minutes=offset)).astimezone(ZEITZONE_BERLIN)
+    return f"Auto-Fix ca. {ziel_berlin:%H:%M} Uhr deutsche Zeit ({boerse} + {offset} Min)"
 
 
 def _sortiere_numerisch(df, spalte, ascending=False):
@@ -51,7 +64,7 @@ def _sortiere_numerisch(df, spalte, ascending=False):
 def seite_start():
     st.subheader("Hauptübersicht")
     st.write("Zentrale Übersicht zu Markt, Signalen und Prognosegüte.")
-    st.caption(f"Status am: {_zeitstempel_str()}")
+    st.caption(f"Status am: {_zeitstempel_str()} deutsche Zeit")
 
     # 1. Datenbasis ermitteln (Snapshots vs. Live)
     df_eu_fixed = lade_heutigen_snapshot(region="Europa")

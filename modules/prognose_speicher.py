@@ -19,6 +19,8 @@ DATEI_PROGNOSEN = DATA_ORDNER / "prognosen_historie.csv"
 DATEI_AUSWERTUNG = DATA_ORDNER / "prognosen_auswertung.csv"
 DATEI_METADATEN = DATA_ORDNER / "prognosen_metadaten.json"
 DATEI_STANDARDWERTE = DATA_ORDNER / "standardwerte_vorschlag.json"
+ZEITZONE_BERLIN = ZoneInfo("Europe/Berlin")
+ZEITZONE_NEW_YORK = ZoneInfo("America/New_York")
 
 
 @contextmanager
@@ -87,10 +89,17 @@ def _stelle_data_ordner_sicher():
     BACKUP_ORDNER.mkdir(parents=True, exist_ok=True)
 
 def _jetzt_berlin():
-    return datetime.now(ZoneInfo("Europe/Berlin"))
+    return datetime.now(ZEITZONE_BERLIN)
 
 def _jetzt_new_york():
-    return datetime.now(ZoneInfo("America/New_York"))
+    return datetime.now(ZEITZONE_NEW_YORK)
+
+def _als_berlin_zeit(zeitpunkt):
+    if zeitpunkt is None:
+        return None
+    if getattr(zeitpunkt, "tzinfo", None) is None:
+        return zeitpunkt.replace(tzinfo=ZEITZONE_BERLIN)
+    return zeitpunkt.astimezone(ZEITZONE_BERLIN)
 
 def _heute_str():
     return _jetzt_berlin().strftime("%Y-%m-%d")
@@ -379,7 +388,7 @@ def liste_backups_auf():
             gruppen[ts]["dateien"].append(f.name)
             if not gruppen[ts]["datum_formatiert"]:
                 stats = f.stat()
-                gruppen[ts]["datum_formatiert"] = datetime.fromtimestamp(stats.st_mtime).strftime("%Y-%m-%d %H:%M")
+                gruppen[ts]["datum_formatiert"] = datetime.fromtimestamp(stats.st_mtime, tz=ZEITZONE_BERLIN).strftime("%Y-%m-%d %H:%M")
     
     ergebnis = []
     for ts, info in gruppen.items():

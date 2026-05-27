@@ -43,5 +43,5 @@ def seite_hilfe():
     from modules.prognose_speicher import _zeitstempel_str
     st.subheader("Hilfe & Dokumentation")
     st.write("Hier findest du die Definitionen der im Dashboard verwendeten Kennzahlen und Abkürzungen.")
-    st.caption(f"Letzte Aktualisierung der Hilfe: {_zeitstempel_str()}")
+    st.caption(f"Letzte Aktualisierung der Hilfe: {_zeitstempel_str()} deutsche Zeit")
     zeige_erklaerungen_kennzahlen()

@@ -2,18 +2,19 @@
 # 01_IMPORTS
 # =========================================================
 from datetime import datetime
-from zoneinfo import ZoneInfo
+
+from modules.prognose_speicher import ZEITZONE_BERLIN, ZEITZONE_NEW_YORK
 
 
 # =========================================================
 # 02_ZEITFUNKTIONEN
 # =========================================================
 def hole_zeit_berlin():
-    return datetime.now(ZoneInfo("Europe/Berlin"))
+    return datetime.now(ZEITZONE_BERLIN)
 
 
 def hole_zeit_new_york():
-    return datetime.now(ZoneInfo("America/New_York"))
+    return datetime.now(ZEITZONE_NEW_YORK)
 
 
 # =========================================================

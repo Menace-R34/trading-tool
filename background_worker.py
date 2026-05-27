@@ -1,5 +1,4 @@
 import time
-import datetime
 import sys
 import os
 import socket
@@ -13,7 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from modules.logic.automation import check_automation_loop
 from modules.prognose_auswertung import fuehre_tagespruefung_aus
-from modules.prognose_speicher import hole_fixierungs_status
+from modules.prognose_speicher import hole_fixierungs_status, _zeitstempel_str
 
 
 WORKER_LOCK_PORT = 47651
@@ -70,7 +69,7 @@ def main():
 
     print("=========================================================")
     print(f"🚀 Trading-Tool Hintergrund-Wächter gestartet")
-    print(f"🕒 Startzeit: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🕒 Startzeit: {_zeitstempel_str()} deutsche Zeit")
     print("=========================================================")
     letzter_status_log = None
     

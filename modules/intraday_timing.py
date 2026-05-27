@@ -4,10 +4,13 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
+from modules.prognose_speicher import ZEITZONE_BERLIN, _jetzt_berlin
+
 
 DATA_ORDNER = Path("data")
 DATEI_INTRADAY_TIMING = DATA_ORDNER / "intraday_timing.csv"
 CACHE_TTL_STUNDEN = 20
+CACHE_VERSION = 2
 
 
 def lade_intraday_timing_fuer_ticker(ticker_liste, interval="15m", period="60d"):
@@ -28,7 +31,7 @@ def lade_intraday_timing_fuer_ticker(ticker_liste, interval="15m", period="60d")
 
     for ticker in ticker_liste:
         eintrag = cache.get(ticker)
-        if eintrag and not _cache_abgelaufen(eintrag.get("Berechnet am")):
+        if eintrag and _cache_version_gueltig(eintrag) and not _cache_abgelaufen(eintrag.get("Berechnet am")):
             ergebnis[ticker] = eintrag
             continue
 
@@ -70,6 +73,7 @@ def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
     if df.empty:
         return None
 
+    df = _index_in_berlin_zeit(df)
     df["Datum"] = df.index.date
     tages_trades = []
 
@@ -92,7 +96,8 @@ def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
         "Intraday Ø Haltedauer Min": int(round(trades["Haltedauer Min"].mean())),
         "Intraday Ø Potenzial %": round(float(trades["Potenzial %"].mean()), 2),
         "Intraday Tage": int(len(trades)),
-        "Berechnet am": datetime.now().isoformat(timespec="seconds"),
+        "Berechnet am": _jetzt_berlin().isoformat(timespec="seconds"),
+        "Cache Version": CACHE_VERSION,
     }
 
 
@@ -109,7 +114,7 @@ def werte_intraday_prognose_aus(
         return None
 
     start = pd.to_datetime(prognose_datum)
-    if start.strftime("%Y-%m-%d") >= datetime.now().strftime("%Y-%m-%d"):
+    if start.strftime("%Y-%m-%d") >= _jetzt_berlin().strftime("%Y-%m-%d"):
         return None
 
     ende = start + pd.Timedelta(days=int(horizon_tage) + 2)
@@ -141,6 +146,7 @@ def werte_intraday_prognose_aus(
     df = df.dropna(subset=["High", "Low", "Close"]).sort_index()
     if df.empty:
         return None
+    df = _index_in_berlin_zeit(df)
 
     entry_zeit = None
     entry_preis = None
@@ -174,11 +180,11 @@ def werte_intraday_prognose_aus(
                 "Status": "Intraday abgeschlossen",
                 "Ergebnis": "Treffer",
                 "Treffer": 1,
-                "Erreicht am": zeitpunkt.strftime("%Y-%m-%d %H:%M"),
+                "Erreicht am": _formatiere_berlin_zeitpunkt(zeitpunkt),
                 "Rendite %": round(rendite, 2),
                 "Haltedauer": haltedauer_tage,
-                "Buy-in Zeit": entry_zeit.strftime("%H:%M"),
-                "Exit Zeit": zeitpunkt.strftime("%H:%M"),
+                "Buy-in Zeit": _formatiere_berlin_uhrzeit(entry_zeit),
+                "Exit Zeit": _formatiere_berlin_uhrzeit(zeitpunkt),
             }
 
         if stop_loss > 0 and low <= stop_loss:
@@ -187,11 +193,11 @@ def werte_intraday_prognose_aus(
                 "Status": "Intraday abgeschlossen",
                 "Ergebnis": "Fehler",
                 "Treffer": 0,
-                "Erreicht am": zeitpunkt.strftime("%Y-%m-%d %H:%M"),
+                "Erreicht am": _formatiere_berlin_zeitpunkt(zeitpunkt),
                 "Rendite %": round(rendite, 2),
                 "Haltedauer": haltedauer_tage,
-                "Buy-in Zeit": entry_zeit.strftime("%H:%M"),
-                "Exit Zeit": zeitpunkt.strftime("%H:%M"),
+                "Buy-in Zeit": _formatiere_berlin_uhrzeit(entry_zeit),
+                "Exit Zeit": _formatiere_berlin_uhrzeit(zeitpunkt),
             }
 
     letzte_zeile = df.loc[df.index >= entry_zeit].tail(1)
@@ -204,11 +210,11 @@ def werte_intraday_prognose_aus(
         "Status": "Intraday Zeitablauf",
         "Ergebnis": "Positiv" if rendite > 0 else "Negativ" if rendite < 0 else "Neutral",
         "Treffer": 1 if rendite > 0 else 0 if rendite < 0 else None,
-        "Erreicht am": letzter_zeitpunkt.strftime("%Y-%m-%d %H:%M"),
+        "Erreicht am": _formatiere_berlin_zeitpunkt(letzter_zeitpunkt),
         "Rendite %": round(rendite, 2),
         "Haltedauer": min(int(horizon_tage), (letzter_zeitpunkt.date() - start_date).days + 1),
-        "Buy-in Zeit": entry_zeit.strftime("%H:%M"),
-        "Exit Zeit": letzter_zeitpunkt.strftime("%H:%M"),
+        "Buy-in Zeit": _formatiere_berlin_uhrzeit(entry_zeit),
+        "Exit Zeit": _formatiere_berlin_uhrzeit(letzter_zeitpunkt),
     }
 
 
@@ -278,10 +284,20 @@ def _cache_abgelaufen(zeitstempel):
         berechnet = datetime.fromisoformat(str(zeitstempel))
     except Exception:
         return True
-    return datetime.now() - berechnet > timedelta(hours=CACHE_TTL_STUNDEN)
+    if berechnet.tzinfo is None:
+        berechnet = berechnet.replace(tzinfo=ZEITZONE_BERLIN)
+    return _jetzt_berlin() - berechnet.astimezone(ZEITZONE_BERLIN) > timedelta(hours=CACHE_TTL_STUNDEN)
+
+
+def _cache_version_gueltig(eintrag):
+    try:
+        return int(float(eintrag.get("Cache Version", 0))) == CACHE_VERSION
+    except Exception:
+        return False
 
 
 def _minute_des_tages(zeitpunkt):
+    zeitpunkt = _zeitpunkt_in_berlin(zeitpunkt)
     return int(zeitpunkt.hour) * 60 + int(zeitpunkt.minute)
 
 
@@ -303,3 +319,28 @@ def _zu_float(wert):
         return float(wert)
     except Exception:
         return None
+
+
+def _index_in_berlin_zeit(df):
+    if df.empty:
+        return df
+    if df.index.tz is None:
+        df.index = df.index.tz_localize(ZEITZONE_BERLIN)
+    else:
+        df.index = df.index.tz_convert(ZEITZONE_BERLIN)
+    return df
+
+
+def _zeitpunkt_in_berlin(zeitpunkt):
+    ts = pd.Timestamp(zeitpunkt)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize(ZEITZONE_BERLIN)
+    return ts.tz_convert(ZEITZONE_BERLIN)
+
+
+def _formatiere_berlin_zeitpunkt(zeitpunkt):
+    return _zeitpunkt_in_berlin(zeitpunkt).strftime("%Y-%m-%d %H:%M")
+
+
+def _formatiere_berlin_uhrzeit(zeitpunkt):
+    return _zeitpunkt_in_berlin(zeitpunkt).strftime("%H:%M")
