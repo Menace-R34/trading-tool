@@ -3,6 +3,8 @@ import datetime
 import pandas as pd
 from modules.prognose_speicher import (
     lade_prognosehistorie,
+    _lese_csv_sicher,
+    DATEI_PROGNOSEN,
     speichere_standardwerte,
     loesche_historische_daten,
     _zeitstempel_str,
@@ -51,16 +53,21 @@ def seite_prognosekontrolle():
     st.dataframe(baue_styler(df_hist[spalten]), use_container_width=True, hide_index=True)
 
 
-def _zeige_zeitprotokoll(df_hist):
+def _zeige_zeitprotokoll(df_auswertung):
     st.markdown("#### Zeitprotokoll")
 
-    if "Land" not in df_hist.columns:
+    df_prognosen = _lese_csv_sicher(DATEI_PROGNOSEN)
+    if df_prognosen.empty:
+        st.info("Für das Zeitprotokoll sind noch keine fixierten Prognosen vorhanden.")
+        return
+
+    if "Land" not in df_prognosen.columns:
         st.info("Für das Zeitprotokoll fehlt in den historischen Daten die Spalte `Land`.")
         return
 
     for region in ["Europa", "USA"]:
-        df_region = filtere_nach_region(df_hist, region)
-        tabelle = _baue_zeitprotokoll_tabelle(df_region, region)
+        df_region = filtere_nach_region(df_prognosen, region)
+        tabelle = _baue_zeitprotokoll_tabelle(df_region, region, df_auswertung)
         st.markdown(f"**{region}**")
         if tabelle.empty:
             st.info(f"Für {region} sind noch keine Zeitdaten vorhanden.")
@@ -68,7 +75,7 @@ def _zeige_zeitprotokoll(df_hist):
             st.dataframe(tabelle, use_container_width=True, hide_index=True)
 
 
-def _baue_zeitprotokoll_tabelle(df_region, region):
+def _baue_zeitprotokoll_tabelle(df_region, region, df_auswertung):
     if df_region.empty:
         return pd.DataFrame()
 
@@ -85,7 +92,7 @@ def _baue_zeitprotokoll_tabelle(df_region, region):
     zeilen = []
     for (datum, prognose_zeitstempel), gruppe in gruppen.groupby(["Prognose-Datum", "Prognose-Zeitstempel"], sort=False):
         daten_geladen = _erster_wert(gruppe, "Börsendaten geladen") or prognose_zeitstempel
-        prognosekontrolle = _erster_wert(gruppe, "Prognosekontrolle durchgeführt")
+        prognosekontrolle = _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_zeitstempel)
         fixierung = hole_fixierungs_status(region=region, datum=str(datum), vollstaendig=True) or ""
 
         zeilen.append({
@@ -109,6 +116,23 @@ def _erster_wert(df, spalte):
     werte = df[spalte].dropna().astype(str).str.strip()
     werte = werte[werte != ""]
     return werte.iloc[0] if not werte.empty else ""
+
+
+def _hole_prognosekontrolle_zeit(df_auswertung, gruppe, prognose_zeitstempel):
+    if df_auswertung.empty or "Prognosekontrolle durchgeführt" not in df_auswertung.columns:
+        return ""
+    if "Prognose-Zeitstempel" not in df_auswertung.columns:
+        return ""
+
+    auswahl = df_auswertung[
+        df_auswertung["Prognose-Zeitstempel"].astype(str) == str(prognose_zeitstempel)
+    ].copy()
+
+    if "Ticker" in gruppe.columns and "Ticker" in auswahl.columns:
+        ticker = gruppe["Ticker"].dropna().astype(str).unique().tolist()
+        auswahl = auswahl[auswahl["Ticker"].astype(str).isin(ticker)]
+
+    return _erster_wert(auswahl, "Prognosekontrolle durchgeführt")
 
 def seite_einstellungen():
     st.subheader("⚙️ Systemeinstellungen")
