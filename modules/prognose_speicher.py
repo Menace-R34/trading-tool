@@ -288,6 +288,71 @@ def loesche_historische_daten(von_datum, bis_datum):
         "backups": backups_erstellt
     }
 
+
+def setze_datensammlung_zurueck():
+    """
+    Archiviert die aktuelle Datensammlung und startet mit leeren Sammeldateien neu.
+    Einstellungen, Universum, Optimierungshistorie und bestehende Backups bleiben erhalten.
+    """
+    _stelle_data_ordner_sicher()
+    zeitstempel = _jetzt_berlin().strftime("%Y%m%d_%H%M%S")
+    reset_ordner = BACKUP_ORDNER / f"reset_{zeitstempel}"
+    reset_ordner.mkdir(parents=True, exist_ok=True)
+
+    archiviert = []
+    fehler = []
+
+    dateien = [
+        DATEI_PROGNOSEN,
+        DATEI_AUSWERTUNG,
+        DATEI_METADATEN,
+        DATA_ORDNER / "intraday_timing.csv",
+        DATA_ORDNER / "prognosen_historie.csv.tmp",
+        DATA_ORDNER / "prognosen_auswertung.csv.tmp",
+        DATA_ORDNER / "prognosen_metadaten.json.tmp",
+        DATA_ORDNER / "automation_check.lock",
+        DATA_ORDNER / "background_worker.pid",
+    ]
+
+    for dateipfad in dateien:
+        if not dateipfad.exists():
+            continue
+        try:
+            ziel = reset_ordner / dateipfad.name
+            shutil.move(str(dateipfad), str(ziel))
+            archiviert.append(str(dateipfad))
+        except Exception as exc:
+            fehler.append(f"{dateipfad}: {exc}")
+
+    for ordnername in ["cache_kurse", "logs"]:
+        ordner = DATA_ORDNER / ordnername
+        if not ordner.exists():
+            continue
+        try:
+            ziel = reset_ordner / ordnername
+            shutil.move(str(ordner), str(ziel))
+            archiviert.append(str(ordner))
+        except Exception as exc:
+            fehler.append(f"{ordner}: {exc}")
+
+    info_pfad = reset_ordner / "RESET_INFO.txt"
+    info_pfad.write_text(
+        "\n".join([
+            "Trading Tool Datensammlung zurueckgesetzt",
+            f"Zeitpunkt: {_zeitstempel_str()} deutsche Zeit",
+            "",
+            "Archiviert wurden Prognosehistorie, Auswertung, Metadaten, Intraday-Cache, Kurscache und Logs.",
+            "Behalten wurden Code, Einstellungen, Tickeruniversum, Optimierungshistorie und bestehende Backups.",
+        ]),
+        encoding="utf-8",
+    )
+
+    return {
+        "backup_ordner": str(reset_ordner),
+        "archiviert": archiviert,
+        "fehler": fehler,
+    }
+
 # =========================================================
 # 06_HEUTIGEN_SNAPSHOT_LADEN
 # =========================================================

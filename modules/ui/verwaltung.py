@@ -7,6 +7,7 @@ from modules.prognose_speicher import (
     DATEI_PROGNOSEN,
     speichere_standardwerte,
     loesche_historische_daten,
+    setze_datensammlung_zurueck,
     _zeitstempel_str,
     _jetzt_berlin,
     hole_fixierungs_status,
@@ -325,6 +326,17 @@ def seite_einstellungen():
                     st.rerun()
                 else:
                     st.info("Keine Einträge im Zeitraum gefunden.")
+
+            st.divider()
+            st.markdown("**Datensammlung neu starten**")
+            reset_bestaetigt = st.checkbox("Alte Sammlung archivieren und ab jetzt neu sammeln")
+            if st.button("Datensammlung jetzt neu starten", use_container_width=True, type="secondary", disabled=not reset_bestaetigt):
+                ergebnis = setze_datensammlung_zurueck()
+                if ergebnis["fehler"]:
+                    st.error("; ".join(ergebnis["fehler"]))
+                else:
+                    st.success(f"Datensammlung zurückgesetzt. Backup: {ergebnis['backup_ordner']}")
+                    st.rerun()
 
     # Footer Speichern
     st.divider()
