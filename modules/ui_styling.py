@@ -87,6 +87,7 @@ def formatiere_anzeige_df(df):
             anzeige_df = anzeige_df.rename(columns={alt: neu})
 
     priorisierte_spalten = [
+        "Region",
         "Ticker",
         "Land",
         "Acc %",

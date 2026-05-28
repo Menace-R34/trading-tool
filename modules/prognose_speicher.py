@@ -132,6 +132,8 @@ def _lese_csv_sicher(dateipfad):
             "Sig. (S)": "Swing Signalstärke",
             "Score (D)": "Day Score",
             "Score (S)": "Swing Score",
+            "Prognose-Zeit_x": "Prognose-Zeit",
+            "Prognose-Zeit_y": "Prognose-Zeit",
             "CRV (D)": "Day CRV",
             "CRV (S)": "Swing CRV",
             "Kurs €": "Letzter Kurs €",

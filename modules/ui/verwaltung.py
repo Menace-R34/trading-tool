@@ -24,7 +24,7 @@ from modules.ui_einstellungen import (
     hole_filter_settings_aus_session
 )
 from modules.ui_styling import baue_styler
-from modules.region_logik import filtere_nach_region
+from modules.region_logik import filtere_nach_region, bestimme_region
 
 def seite_prognosekontrolle():
     st.subheader("Prognosekontrolle")
@@ -42,15 +42,88 @@ def seite_prognosekontrolle():
     col2.metric("Swing Trefferquote", f"{statistik['Swing Trefferquote %']}%", f"{statistik['Swing Anzahl']} Prognosen")
 
     _zeige_zeitprotokoll(df_hist)
+    _zeige_plausibilitaetspruefung(df_hist)
+
+    df_tabelle = _ergaenze_region_kennung(df_hist)
 
     spalten = [
-        "Prognose-Datum", "Prognose-Zeit", "Ticker", 
+        "Region", "Prognose-Datum", "Prognose-Zeit", "Ticker",
         "Day Kauf", "Day Treffer", "Day Erreicht am",
         "Swing Kauf", "Swing Treffer", "Swing Erreicht am",
         "Day Netto €", "Swing Netto €"
     ]
-    spalten = [sp for sp in spalten if sp in df_hist.columns]
-    st.dataframe(baue_styler(df_hist[spalten]), use_container_width=True, hide_index=True)
+    spalten = [sp for sp in spalten if sp in df_tabelle.columns]
+    st.dataframe(baue_styler(df_tabelle[spalten]), use_container_width=True, hide_index=True)
+
+
+def _ergaenze_region_kennung(df):
+    df = df.copy()
+    if "Land" in df.columns:
+        df["Region"] = df["Land"].apply(_region_kennung)
+    elif "Region" not in df.columns:
+        df["Region"] = ""
+    return df
+
+
+def _region_kennung(land):
+    region = bestimme_region(land)
+    if region == "Europa":
+        return "EU"
+    if region == "USA":
+        return "USA"
+    return region
+
+
+def _zeige_plausibilitaetspruefung(df_hist):
+    probleme = _finde_zeitliche_inkonsistenzen(df_hist)
+    if probleme.empty:
+        st.success("Zeitliche Plausibilitätsprüfung: keine Auffälligkeiten gefunden.")
+        return
+
+    st.warning(f"Zeitliche Plausibilitätsprüfung: {len(probleme)} Auffälligkeiten gefunden.")
+    st.dataframe(probleme, use_container_width=True, hide_index=True, height=180)
+
+
+def _finde_zeitliche_inkonsistenzen(df_hist):
+    if df_hist.empty:
+        return pd.DataFrame()
+
+    heute = _jetzt_berlin().strftime("%Y-%m-%d")
+    probleme = []
+
+    for _, zeile in df_hist.iterrows():
+        ticker = zeile.get("Ticker", "")
+        land = zeile.get("Land", "")
+        region = _region_kennung(land)
+        prognose_datum = str(zeile.get("Prognose-Datum", "")).strip()
+        prognose_zeitstempel = str(zeile.get("Prognose-Zeitstempel", "")).strip()
+        kontrolle = str(zeile.get("Prognosekontrolle durchgeführt", "")).strip()
+        daten_geladen = str(zeile.get("Börsendaten geladen", "")).strip()
+
+        if prognose_datum == heute and kontrolle:
+            probleme.append(_problem(region, ticker, prognose_datum, "Kontrollzeitpunkt für heutigen Fixierungstag vorhanden"))
+
+        if prognose_datum and kontrolle and prognose_datum >= heute:
+            probleme.append(_problem(region, ticker, prognose_datum, "Prognosekontrolle nicht vor dem Folgetag erwartet"))
+
+        if prognose_zeitstempel and kontrolle and kontrolle < prognose_zeitstempel:
+            probleme.append(_problem(region, ticker, prognose_datum, "Prognosekontrolle liegt vor Prognose-Erstellung"))
+
+        if prognose_zeitstempel and daten_geladen and daten_geladen > prognose_zeitstempel:
+            probleme.append(_problem(region, ticker, prognose_datum, "Börsendaten-Zeit liegt nach Prognose-Erstellung"))
+
+    if not probleme:
+        return pd.DataFrame()
+    return pd.DataFrame(probleme).drop_duplicates().reset_index(drop=True)
+
+
+def _problem(region, ticker, datum, meldung):
+    return {
+        "Region": region,
+        "Ticker": ticker,
+        "Prognose-Datum": datum,
+        "Auffälligkeit": meldung,
+    }
 
 
 def _zeige_zeitprotokoll(df_auswertung):
