@@ -4,7 +4,7 @@ from modules.logic.analysis import berechne_vollstaendige_analyse
 from modules.markt_zeit import bestimme_handelsfenster
 
 @st.cache_data(show_spinner=False)
-def _cached_baue_auswertung_fuer_ticker(ticker_liste, zeitraum, v="1.3"):
+def _cached_baue_auswertung_fuer_ticker(ticker_liste, zeitraum, v="1.4"):
     """
     Wrapper für die Logik-Funktion mit Streamlit-Caching.
     """

@@ -62,9 +62,21 @@ def bewerte_daytrading_signal(statistik, saison, news, markt=None):
     news_score = _wert(news, "News-Score", 0.0)
     kurs = _wert(statistik, "Letzter Kurs €", 0.0)
     marktlage = _hole_marktlage(markt)
-    intraday_potenzial = _float_wert(statistik, "Intraday Ø Potenzial %", 0.0)
-    intraday_kaufzeit = _wert(statistik, "Intraday Beste Kaufzeit", "")
-    intraday_verkaufszeit = _wert(statistik, "Intraday Beste Verkaufszeit", "")
+    intraday_potenzial = _float_wert(
+        statistik,
+        "Day Optimiert Ø Rendite %",
+        _float_wert(statistik, "Intraday Ø Potenzial %", 0.0),
+    )
+    intraday_kaufzeit = _wert(
+        statistik,
+        "Day Optimiert Buy-in Zeit",
+        _wert(statistik, "Intraday Beste Kaufzeit", ""),
+    )
+    intraday_verkaufszeit = _wert(
+        statistik,
+        "Day Optimiert Take-Profit Zeit",
+        _wert(statistik, "Intraday Beste Verkaufszeit", ""),
+    )
 
     trade = berechne_trade_parameter_day(statistik)
     crv = trade.get("CRV", 0.0)
@@ -123,9 +135,21 @@ def bewerte_swingtrading_signal(statistik, saison, news, markt=None):
     saison_score = _wert(saison, "Saison-Score", 0.0)
     news_score = _wert(news, "News-Score", 0.0)
     marktlage = _hole_marktlage(markt)
-    intraday_potenzial = _float_wert(statistik, "Intraday Ø Potenzial %", 0.0)
-    intraday_kaufzeit = _wert(statistik, "Intraday Beste Kaufzeit", "")
-    intraday_verkaufszeit = _wert(statistik, "Intraday Beste Verkaufszeit", "")
+    intraday_potenzial = _float_wert(
+        statistik,
+        "Swing Optimiert Ø Rendite %",
+        _float_wert(statistik, "Intraday Ø Potenzial %", 0.0),
+    )
+    intraday_kaufzeit = _wert(
+        statistik,
+        "Swing Optimiert Buy-in Zeit",
+        _wert(statistik, "Intraday Beste Kaufzeit", ""),
+    )
+    intraday_verkaufszeit = _wert(
+        statistik,
+        "Swing Optimiert Take-Profit Zeit",
+        _wert(statistik, "Intraday Beste Verkaufszeit", ""),
+    )
 
     trade = berechne_trade_parameter_swing(statistik)
     crv = trade.get("CRV", 0.0)

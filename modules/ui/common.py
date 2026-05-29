@@ -28,4 +28,10 @@ def _ergaenze_intraday_timing(df_target):
     df_target["Intraday Beste Verkaufszeit"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Intraday Beste Verkaufszeit", ""))
     df_target["Intraday Ø Haltedauer Min"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Intraday Ø Haltedauer Min", 0))
     df_target["Intraday Ø Potenzial %"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Intraday Ø Potenzial %", None))
+    df_target["Day Optimiert Buy-in Zeit"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Day Optimiert Buy-in Zeit", ""))
+    df_target["Day Optimiert Take-Profit Zeit"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Day Optimiert Take-Profit Zeit", ""))
+    df_target["Swing Optimiert Buy-in Zeit"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Swing Optimiert Buy-in Zeit", ""))
+    df_target["Swing Optimiert Take-Profit Zeit"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Swing Optimiert Take-Profit Zeit", ""))
+    df_target["Day Optimiert Trefferquote %"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Day Optimiert Trefferquote %", None))
+    df_target["Swing Optimiert Trefferquote %"] = df_target["Ticker"].map(lambda t: intraday_timing.get(str(t).strip().upper(), {}).get("Swing Optimiert Trefferquote %", None))
     return df_target

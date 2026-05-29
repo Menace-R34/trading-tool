@@ -8,9 +8,11 @@ from modules.prognose_speicher import ZEITZONE_BERLIN, _jetzt_berlin
 
 
 DATA_ORDNER = Path("data")
+DATEI_AUSWERTUNG = DATA_ORDNER / "prognosen_auswertung.csv"
 DATEI_INTRADAY_TIMING = DATA_ORDNER / "intraday_timing.csv"
 CACHE_TTL_STUNDEN = 20
-CACHE_VERSION = 2
+CACHE_VERSION = 3
+MIN_OPTIMIERUNGS_TRADES = 3
 
 
 def lade_intraday_timing_fuer_ticker(ticker_liste, interval="15m", period="60d"):
@@ -89,7 +91,7 @@ def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
     kauf_minute = int(round(trades["Kauf Minute"].median()))
     verkauf_minute = int(round(trades["Verkauf Minute"].median()))
 
-    return {
+    basis = {
         "Ticker": ticker,
         "Intraday Beste Kaufzeit": _minute_zu_uhrzeit(kauf_minute),
         "Intraday Beste Verkaufszeit": _minute_zu_uhrzeit(verkauf_minute),
@@ -98,6 +100,168 @@ def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
         "Intraday Tage": int(len(trades)),
         "Berechnet am": _jetzt_berlin().isoformat(timespec="seconds"),
         "Cache Version": CACHE_VERSION,
+    }
+    basis.update(_berechne_strategie_optimierung(ticker, df))
+    return basis
+
+
+def _berechne_strategie_optimierung(ticker, intraday_df):
+    historie = _lade_auswertung_fuer_ticker(ticker)
+    if historie.empty or intraday_df.empty:
+        return {}
+
+    ergebnis = {}
+    for strategie in ["Day", "Swing"]:
+        optimierung = _optimiere_strategie_zeiten(historie, intraday_df, strategie)
+        if optimierung:
+            prefix = f"{strategie} Optimiert"
+            ergebnis[f"{prefix} Buy-in Zeit"] = optimierung["Buy-in Zeit"]
+            ergebnis[f"{prefix} Take-Profit Zeit"] = optimierung["Take-Profit Zeit"]
+            ergebnis[f"{prefix} Trefferquote %"] = optimierung["Trefferquote %"]
+            ergebnis[f"{prefix} Ø Rendite %"] = optimierung["Ø Rendite %"]
+            ergebnis[f"{prefix} Basis"] = optimierung["Basis"]
+    return ergebnis
+
+
+def _lade_auswertung_fuer_ticker(ticker):
+    if not DATEI_AUSWERTUNG.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_csv(DATEI_AUSWERTUNG)
+    except Exception:
+        return pd.DataFrame()
+    if df.empty or "Ticker" not in df.columns:
+        return pd.DataFrame()
+    return df[df["Ticker"].astype(str).str.upper().str.strip() == str(ticker).upper().strip()].copy()
+
+
+def _optimiere_strategie_zeiten(historie, intraday_df, strategie):
+    kauf_col = f"{strategie} Kauf"
+    sl_col = f"{strategie} Stop Loss €"
+    tp_col = f"{strategie} Take Profit €"
+    datum_col = "Prognose-Datum"
+    if not {kauf_col, sl_col, tp_col, datum_col}.issubset(historie.columns):
+        return None
+
+    rows = historie[
+        historie[kauf_col].astype(str).str.upper().eq("JA")
+    ].copy()
+    if rows.empty:
+        return None
+
+    candidate_minutes = _ermittle_kandidaten_minuten(intraday_df)
+    if not candidate_minutes:
+        return None
+
+    horizont = 3 if strategie == "Day" else 10
+    bewertungen = []
+    for minute in candidate_minutes:
+        ergebnisse = []
+        for _, zeile in rows.iterrows():
+            test = _simuliere_historische_prognose(
+                intraday_df=intraday_df,
+                prognose_datum=zeile.get(datum_col),
+                kauf_minute=minute,
+                stop_loss=_zu_float(zeile.get(sl_col)),
+                take_profit=_zu_float(zeile.get(tp_col)),
+                horizon_tage=horizont,
+            )
+            if test:
+                ergebnisse.append(test)
+
+        if len(ergebnisse) < MIN_OPTIMIERUNGS_TRADES:
+            continue
+
+        trefferquote = sum(e["Treffer"] for e in ergebnisse) / len(ergebnisse) * 100
+        avg_rendite = sum(e["Rendite %"] for e in ergebnisse) / len(ergebnisse)
+        avg_exit = int(round(sum(e["Exit Minute"] for e in ergebnisse) / len(ergebnisse)))
+        bewertungen.append({
+            "Kauf Minute": minute,
+            "Exit Minute": avg_exit,
+            "Trefferquote %": trefferquote,
+            "Ø Rendite %": avg_rendite,
+            "Basis": len(ergebnisse),
+        })
+
+    if not bewertungen:
+        return None
+
+    bester = sorted(
+        bewertungen,
+        key=lambda x: (x["Trefferquote %"], x["Ø Rendite %"], x["Basis"]),
+        reverse=True,
+    )[0]
+    return {
+        "Buy-in Zeit": _minute_zu_uhrzeit(bester["Kauf Minute"]),
+        "Take-Profit Zeit": _minute_zu_uhrzeit(bester["Exit Minute"]),
+        "Trefferquote %": round(float(bester["Trefferquote %"]), 1),
+        "Ø Rendite %": round(float(bester["Ø Rendite %"]), 2),
+        "Basis": int(bester["Basis"]),
+    }
+
+
+def _ermittle_kandidaten_minuten(intraday_df):
+    minuten = sorted({
+        _minute_des_tages(idx)
+        for idx in intraday_df.index
+        if 7 * 60 <= _minute_des_tages(idx) <= 22 * 60
+    })
+    return minuten[::2] if len(minuten) > 28 else minuten
+
+
+def _simuliere_historische_prognose(intraday_df, prognose_datum, kauf_minute, stop_loss, take_profit, horizon_tage):
+    if stop_loss is None or take_profit is None or stop_loss <= 0 or take_profit <= 0:
+        return None
+    try:
+        start_date = pd.to_datetime(prognose_datum).date()
+    except Exception:
+        return None
+
+    zeitraum = intraday_df[
+        (intraday_df.index.date >= start_date) &
+        (intraday_df.index.date < start_date + timedelta(days=int(horizon_tage)))
+    ].copy()
+    if zeitraum.empty:
+        return None
+
+    entry_zeit = None
+    entry_preis = None
+    for zeitpunkt, row in zeitraum.iterrows():
+        if zeitpunkt.date() == start_date and _minute_des_tages(zeitpunkt) < kauf_minute:
+            continue
+        entry_zeit = zeitpunkt
+        entry_preis = _zu_float(row.get("Close"))
+        break
+    if entry_zeit is None or entry_preis is None or entry_preis <= 0:
+        return None
+
+    letzter_zeitpunkt = entry_zeit
+    letzter_close = entry_preis
+    for zeitpunkt, row in zeitraum.loc[zeitraum.index >= entry_zeit].iterrows():
+        high = _zu_float(row.get("High"))
+        low = _zu_float(row.get("Low"))
+        close = _zu_float(row.get("Close"))
+        if close is not None:
+            letzter_close = close
+            letzter_zeitpunkt = zeitpunkt
+        if high is not None and high >= take_profit:
+            return {
+                "Treffer": 1,
+                "Rendite %": ((take_profit / entry_preis) - 1) * 100,
+                "Exit Minute": _minute_des_tages(zeitpunkt),
+            }
+        if low is not None and low <= stop_loss:
+            return {
+                "Treffer": 0,
+                "Rendite %": ((stop_loss / entry_preis) - 1) * 100,
+                "Exit Minute": _minute_des_tages(zeitpunkt),
+            }
+
+    rendite = ((letzter_close / entry_preis) - 1) * 100
+    return {
+        "Treffer": 1 if rendite > 0 else 0,
+        "Rendite %": rendite,
+        "Exit Minute": _minute_des_tages(letzter_zeitpunkt),
     }
 
 

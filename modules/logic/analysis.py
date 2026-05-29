@@ -82,7 +82,9 @@ def berechne_vollstaendige_analyse(ticker_liste, zeitraum):
         "ATR relativ %", "ATR 14 €", "Perf 20 Tage %", "RSI 14", "Saison-Score", "News-Score",
         "Day Score", "Swing Score", "Day Stop Loss €", "Day Take Profit €", "Day CRV",
         "Day Erwartung €", "Day Netto €", "Day Potenzial €", "Swing Stop Loss €",
-        "Swing Take Profit €", "Swing CRV", "Swing Erwartung €", "Swing Netto €", "Swing Potenzial €"
+        "Swing Take Profit €", "Swing CRV", "Swing Erwartung €", "Swing Netto €", "Swing Potenzial €",
+        "Day Optimiert Trefferquote %", "Day Optimiert Ø Rendite %", "Day Optimiert Basis",
+        "Swing Optimiert Trefferquote %", "Swing Optimiert Ø Rendite %", "Swing Optimiert Basis"
     ]
     for spalte in numerische_spalten:
         if spalte in df_res.columns:
