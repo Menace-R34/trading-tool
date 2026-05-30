@@ -11,11 +11,13 @@ DATA_ORDNER = Path("data")
 DATEI_AUSWERTUNG = DATA_ORDNER / "prognosen_auswertung.csv"
 DATEI_INTRADAY_TIMING = DATA_ORDNER / "intraday_timing.csv"
 CACHE_TTL_STUNDEN = 20
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 MIN_OPTIMIERUNGS_TRADES = 3
+INTRADAY_INTERVAL = "5m"
+INTRADAY_KERZE_MINUTEN = 5
 
 
-def lade_intraday_timing_fuer_ticker(ticker_liste, interval="15m", period="60d"):
+def lade_intraday_timing_fuer_ticker(ticker_liste, interval=INTRADAY_INTERVAL, period="60d"):
     """
     Ermittelt aus Intraday-Kerzen eine historische Bestzeit je Ticker.
 
@@ -49,7 +51,7 @@ def lade_intraday_timing_fuer_ticker(ticker_liste, interval="15m", period="60d")
     return ergebnis
 
 
-def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
+def _berechne_intraday_timing(ticker, interval=INTRADAY_INTERVAL, period="60d"):
     try:
         df = yf.download(
             tickers=ticker,
@@ -57,7 +59,7 @@ def _berechne_intraday_timing(ticker, interval="15m", period="60d"):
             interval=interval,
             auto_adjust=False,
             progress=False,
-            prepost=False,
+            prepost=True,
         )
     except Exception:
         return None
@@ -161,6 +163,7 @@ def _optimiere_strategie_zeiten(historie, intraday_df, strategie):
             test = _simuliere_historische_prognose(
                 intraday_df=intraday_df,
                 prognose_datum=zeile.get(datum_col),
+                prognose_zeitstempel=zeile.get("Prognose-Zeitstempel"),
                 kauf_minute=minute,
                 stop_loss=_zu_float(zeile.get(sl_col)),
                 take_profit=_zu_float(zeile.get(tp_col)),
@@ -204,12 +207,20 @@ def _ermittle_kandidaten_minuten(intraday_df):
     minuten = sorted({
         _minute_des_tages(idx)
         for idx in intraday_df.index
-        if 7 * 60 <= _minute_des_tages(idx) <= 22 * 60
+        if 7 * 60 + 30 <= _minute_des_tages(idx) <= 23 * 60
     })
     return minuten[::2] if len(minuten) > 28 else minuten
 
 
-def _simuliere_historische_prognose(intraday_df, prognose_datum, kauf_minute, stop_loss, take_profit, horizon_tage):
+def _simuliere_historische_prognose(
+    intraday_df,
+    prognose_datum,
+    prognose_zeitstempel,
+    kauf_minute,
+    stop_loss,
+    take_profit,
+    horizon_tage,
+):
     if stop_loss is None or take_profit is None or stop_loss <= 0 or take_profit <= 0:
         return None
     try:
@@ -224,20 +235,19 @@ def _simuliere_historische_prognose(intraday_df, prognose_datum, kauf_minute, st
     if zeitraum.empty:
         return None
 
-    entry_zeit = None
-    entry_preis = None
-    for zeitpunkt, row in zeitraum.iterrows():
-        if zeitpunkt.date() == start_date and _minute_des_tages(zeitpunkt) < kauf_minute:
-            continue
-        entry_zeit = zeitpunkt
-        entry_preis = _zu_float(row.get("Close"))
-        break
+    fixierung = _parse_berlin_zeitpunkt(prognose_zeitstempel)
+    entry_zeit, entry_preis = _finde_entry(
+        zeitraum,
+        start_date=start_date,
+        kauf_minute=kauf_minute,
+        fixierung=fixierung,
+    )
     if entry_zeit is None or entry_preis is None or entry_preis <= 0:
         return None
 
     letzter_zeitpunkt = entry_zeit
     letzter_close = entry_preis
-    for zeitpunkt, row in zeitraum.loc[zeitraum.index >= entry_zeit].iterrows():
+    for zeitpunkt, row in zeitraum.loc[zeitraum.index > entry_zeit].iterrows():
         high = _zu_float(row.get("High"))
         low = _zu_float(row.get("Low"))
         close = _zu_float(row.get("Close"))
@@ -272,8 +282,9 @@ def werte_intraday_prognose_aus(
     stop_loss,
     take_profit,
     horizon_tage=3,
-    interval="15m",
+    interval=INTRADAY_INTERVAL,
     erlaube_heute=False,
+    prognose_zeitstempel=None,
 ):
     if not ticker or not prognose_datum or not kaufzeit:
         return None
@@ -296,7 +307,7 @@ def werte_intraday_prognose_aus(
             interval=interval,
             auto_adjust=False,
             progress=False,
-            prepost=False,
+            prepost=True,
         )
     except Exception:
         return None
@@ -317,23 +328,20 @@ def werte_intraday_prognose_aus(
         return None
     df = _index_in_berlin_zeit(df)
 
-    entry_zeit = None
-    entry_preis = None
     start_date = start.date()
-
-    for zeitpunkt, row in df.iterrows():
-        if (zeitpunkt.date() - start_date).days >= int(horizon_tage):
-            break
-        if zeitpunkt.date() == start_date and _minute_des_tages(zeitpunkt) < kauf_minute:
-            continue
-        entry_zeit = zeitpunkt
-        entry_preis = _zu_float(row.get("Close"))
-        break
+    fixierung = _parse_berlin_zeitpunkt(prognose_zeitstempel)
+    entry_zeit, entry_preis = _finde_entry(
+        df,
+        start_date=start_date,
+        kauf_minute=kauf_minute,
+        fixierung=fixierung,
+        horizon_tage=horizon_tage,
+    )
 
     if entry_zeit is None or entry_preis is None or entry_preis <= 0:
         return None
 
-    for zeitpunkt, row in df.loc[df.index >= entry_zeit].iterrows():
+    for zeitpunkt, row in df.loc[df.index > entry_zeit].iterrows():
         haltedauer_tage = (zeitpunkt.date() - start_date).days + 1
         if haltedauer_tage > int(horizon_tage):
             break
@@ -385,6 +393,38 @@ def werte_intraday_prognose_aus(
         "Buy-in Zeit": _formatiere_berlin_uhrzeit(entry_zeit),
         "Exit Zeit": _formatiere_berlin_uhrzeit(letzter_zeitpunkt),
     }
+
+
+def _finde_entry(df, start_date, kauf_minute, fixierung=None, horizon_tage=None):
+    for zeitpunkt, row in df.iterrows():
+        tage_seit_start = (zeitpunkt.date() - start_date).days
+        if tage_seit_start < 0:
+            continue
+        if horizon_tage is not None and tage_seit_start >= int(horizon_tage):
+            break
+        if _minute_des_tages(zeitpunkt) < kauf_minute:
+            continue
+        if fixierung is not None and zeitpunkt < _naechste_vollstaendige_kerze_nach(fixierung):
+            continue
+        entry_preis = _zu_float(row.get("Close"))
+        if entry_preis is not None and entry_preis > 0:
+            return zeitpunkt, entry_preis
+    return None, None
+
+
+def _naechste_vollstaendige_kerze_nach(zeitpunkt):
+    zeitpunkt = _zeitpunkt_in_berlin(zeitpunkt)
+    minute = (zeitpunkt.minute // INTRADAY_KERZE_MINUTEN + 1) * INTRADAY_KERZE_MINUTEN
+    return zeitpunkt.replace(second=0, microsecond=0, minute=0) + timedelta(minutes=minute)
+
+
+def _parse_berlin_zeitpunkt(wert):
+    if wert is None or pd.isna(wert) or not str(wert).strip():
+        return None
+    try:
+        return _zeitpunkt_in_berlin(pd.to_datetime(wert))
+    except Exception:
+        return None
 
 
 def _bester_intraday_trade(tag):

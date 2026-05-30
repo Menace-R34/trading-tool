@@ -8,6 +8,7 @@ from modules.prognose_speicher import (
     speichere_prognosen,
     protokolliere_fixierung,
     hole_fixierungs_status,
+    hole_profil_fixierungs_status,
     lade_gespeicherte_standardwerte,
     _jetzt_berlin,
     _jetzt_new_york,
@@ -22,6 +23,15 @@ _worker_gestartet = False
 _worker_lock = threading.Lock()
 AUTOMATION_LOCK = Path("data/automation_check.lock")
 AUTOMATION_LOCK_MAX_AGE_SECONDS = 3 * 60 * 60
+FIXIERUNGS_FENSTER_MINUTEN = 10
+FIXIERUNGS_PROFILE = [
+    {"profil": "EU_PRE", "region": "Europa", "zeitzone": "berlin", "h": 8, "m": 15},
+    {"profil": "EU_OPEN", "region": "Europa", "zeitzone": "berlin", "h": 10, "m": 0},
+    {"profil": "EU_POST", "region": "Europa", "zeitzone": "berlin", "h": 18, "m": 0},
+    {"profil": "US_PRE", "region": "USA", "zeitzone": "new_york", "h": 8, "m": 45},
+    {"profil": "US_OPEN", "region": "USA", "zeitzone": "new_york", "h": 9, "m": 55},
+    {"profil": "US_POST", "region": "USA", "zeitzone": "new_york", "h": 16, "m": 15},
+]
 
 def start_background_worker():
     """Startet den Hintergrund-Wächter in einem eigenen Thread, falls noch nicht geschehen."""
@@ -44,12 +54,12 @@ def _worker_loop():
             print(f"⚠️ Fehler im Hintergrund-Wächter: {e}")
         time.sleep(60) # Alle 60 Sekunden prüfen
 
-def führe_fixierung_durch(region, zeitraum="1y"):
+def führe_fixierung_durch(region, zeitraum="1y", profil="MANUELL"):
     """
     Führt die eigentliche Fixierung für eine Region durch.
     Holt frische Daten und speichert sie.
     """
-    print(f"[{_zeitstempel_str()} deutsche Zeit] Starte Fixierung für {region}...")
+    print(f"[{_zeitstempel_str()} deutsche Zeit] Starte Fixierung für {profil}...")
     
     ticker_liste = hole_tickerliste_aus_universum()
     if not ticker_liste:
@@ -68,12 +78,13 @@ def führe_fixierung_durch(region, zeitraum="1y"):
         # Filter-Einstellungen laden (für die Historien-Metadaten)
         einstellungen = lade_gespeicherte_standardwerte()
         einstellungen["daten_geladen_zeitstempel"] = _zeitstempel_str()
+        einstellungen["prognose_profil"] = profil
         
         # Speichern
         speichere_prognosen(df_region, einstellungen)
-        protokolliere_fixierung(region)
+        protokolliere_fixierung(region, profil=profil)
         
-        print(f"✅ Fixierung für {region} erfolgreich abgeschlossen.")
+        print(f"✅ Fixierung für {profil} erfolgreich abgeschlossen.")
         return True
     except Exception as e:
         print(f"❌ Fehler bei Fixierung {region}: {e}")
@@ -99,47 +110,38 @@ def _check_automation_loop_ohne_lock():
     if not einstellungen.get("auto_fix_aktiv", True):
         return []
 
-    heutige_fixierungen = hole_fixierungs_status() or {}
-    if all(region in heutige_fixierungen for region in ["Europa", "USA"]):
+    jetzt_be = _jetzt_berlin()
+    if jetzt_be.weekday() >= 5:
         return []
 
-    jetzt_be = _jetzt_berlin()
     jetzt_ny = _jetzt_new_york()
-    
-    offset_eu = einstellungen.get("auto_fix_offset_eu", 20)
-    offset_us = einstellungen.get("auto_fix_offset_us", 20)
-
-    # Zeiten berechnen
-    target_eu_h = 9 + (offset_eu // 60)
-    target_eu_m = offset_eu % 60
-    
-    total_us_m = 30 + offset_us
-    target_us_h = 9 + (total_us_m // 60)
-    target_us_m = total_us_m % 60
-
-    pläne = [
-        {"region": "Europa", "jetzt": jetzt_be, "h": target_eu_h, "m": target_eu_m},
-        {"region": "USA",    "jetzt": jetzt_ny, "h": target_us_h, "m": target_us_m}
-    ]
+    heutige_fixierungen = hole_profil_fixierungs_status() or {}
 
     regionen_fixiert = []
 
-    for plan in pläne:
+    for plan in FIXIERUNGS_PROFILE:
         region = plan["region"]
-        jetzt = plan["jetzt"]
+        profil = plan["profil"]
+        jetzt = jetzt_be if plan["zeitzone"] == "berlin" else jetzt_ny
         
-        if region in heutige_fixierungen:
+        if profil in heutige_fixierungen:
             continue
             
         # Verhindert, dass nachts (z.B. 00:01 Berlin) aufgrund der NY-Zeit vom Vortag (18:01) fixiert wird.
         if jetzt.date() < _jetzt_berlin().date():
             continue
             
-        if jetzt.hour > plan["h"] or (jetzt.hour == plan["h"] and jetzt.minute >= plan["m"]):
-            erfolg = führe_fixierung_durch(region, einstellungen.get("analyse_zeitraum", "1y"))
+        jetzt_minute = jetzt.hour * 60 + jetzt.minute
+        ziel_minute = plan["h"] * 60 + plan["m"]
+        if ziel_minute <= jetzt_minute < ziel_minute + FIXIERUNGS_FENSTER_MINUTEN:
+            erfolg = führe_fixierung_durch(
+                region,
+                einstellungen.get("analyse_zeitraum", "1y"),
+                profil=profil,
+            )
             if erfolg:
-                regionen_fixiert.append(region)
-                heutige_fixierungen[region] = True
+                regionen_fixiert.append(profil)
+                heutige_fixierungen[profil] = True
                 
     return regionen_fixiert
 

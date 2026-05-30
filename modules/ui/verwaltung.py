@@ -42,13 +42,14 @@ def seite_prognosekontrolle():
     col1.metric("Day Trefferquote", f"{statistik['Day Trefferquote %']}%", f"{statistik['Day Anzahl']} Prognosen")
     col2.metric("Swing Trefferquote", f"{statistik['Swing Trefferquote %']}%", f"{statistik['Swing Anzahl']} Prognosen")
 
+    _zeige_profilstatistik(df_hist)
     _zeige_zeitprotokoll(df_hist)
     _zeige_plausibilitaetspruefung(df_hist)
 
     df_tabelle = _ergaenze_region_kennung(df_hist)
 
     spalten = [
-        "Region", "Prognose-Datum", "Prognose-Zeit", "Ticker",
+        "Region", "Prognose-Profil", "Prognose-Datum", "Prognose-Zeit", "Frühester Einstieg", "Ticker",
         "Day Kauf", "Day Treffer", "Day Erreicht am",
         "Swing Kauf", "Swing Treffer", "Swing Erreicht am",
         "Day Netto €", "Swing Netto €"
@@ -85,6 +86,27 @@ def _zeige_plausibilitaetspruefung(df_hist):
     st.dataframe(probleme, use_container_width=True, hide_index=True, height=180)
 
 
+def _zeige_profilstatistik(df_hist):
+    if "Prognose-Profil" not in df_hist.columns:
+        return
+
+    zeilen = []
+    for profil, gruppe in df_hist.groupby("Prognose-Profil", dropna=False):
+        zeile = {"Profil": profil or "ALT"}
+        for strategie in ["Day", "Swing"]:
+            spalte = f"{strategie} Treffer"
+            if spalte not in gruppe.columns:
+                continue
+            treffer = pd.to_numeric(gruppe[spalte], errors="coerce").dropna()
+            zeile[f"{strategie} Anzahl"] = int(len(treffer))
+            zeile[f"{strategie} Trefferquote %"] = round(float(treffer.mean() * 100), 1) if not treffer.empty else 0.0
+        zeilen.append(zeile)
+
+    if zeilen:
+        st.markdown("#### Trefferquoten nach Yahoo-Profil")
+        st.dataframe(pd.DataFrame(zeilen), use_container_width=True, hide_index=True)
+
+
 def _finde_zeitliche_inkonsistenzen(df_hist):
     if df_hist.empty:
         return pd.DataFrame()
@@ -100,6 +122,15 @@ def _finde_zeitliche_inkonsistenzen(df_hist):
         prognose_zeitstempel = str(zeile.get("Prognose-Zeitstempel", "")).strip()
         kontrolle = str(zeile.get("Prognosekontrolle durchgeführt", "")).strip()
         daten_geladen = str(zeile.get("Börsendaten geladen", "")).strip()
+
+        for strategie in ["Day", "Swing"]:
+            erreicht = str(zeile.get(f"{strategie} Erreicht am", "")).strip()
+            if prognose_zeitstempel and erreicht:
+                try:
+                    if pd.to_datetime(erreicht) < pd.to_datetime(prognose_zeitstempel):
+                        probleme.append(_problem(region, ticker, prognose_datum, f"{strategie}-Treffer liegt vor Prognose-Erstellung"))
+                except Exception:
+                    pass
 
         if prognose_datum == heute and kontrolle:
             probleme.append(_problem(region, ticker, prognose_datum, "Kontrollzeitpunkt für heutigen Fixierungstag vorhanden"))
@@ -167,12 +198,12 @@ def _baue_zeitprotokoll_tabelle(df_region, region, df_auswertung):
     for (datum, prognose_zeitstempel), gruppe in gruppen.groupby(["Prognose-Datum", "Prognose-Zeitstempel"], sort=False):
         daten_geladen = _erster_wert(gruppe, "Börsendaten geladen") or prognose_zeitstempel
         prognosekontrolle = _hole_prognosekontrolle_zeit(df_auswertung, gruppe, region, str(datum), prognose_zeitstempel)
-        fixierung = hole_fixierungs_status(region=region, datum=str(datum), vollstaendig=True) or ""
+        profil = _erster_wert(gruppe, "Prognose-Profil") or "ALT"
 
         zeilen.append({
             "Prognose-Datum": datum,
+            "Profil": profil,
             "Prognose erstellt": prognose_zeitstempel,
-            "Fixierung erstellt": fixierung,
             "Börsendaten heruntergeladen": daten_geladen,
             "Prognosekontrolle durchgeführt": prognosekontrolle or "",
             "Werte": int(gruppe["Ticker"].nunique()) if "Ticker" in gruppe.columns else int(len(gruppe)),
@@ -234,14 +265,10 @@ def seite_einstellungen():
             st.write("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True) # Schiebt Toggle leicht runter
             st.session_state["auto_fix_aktiv"] = st.toggle("Auto-Snapshot aktiv", value=st.session_state.get("auto_fix_aktiv", True))
 
-        # Zweite Reihe: Offsets auf gleicher Höhe
-        st.write("---") # Trennlinie innerhalb des Containers
-        st.caption("Snapshot-Verzögerung (Minuten nach Börsenstart)")
-        off1, off2 = st.columns(2)
-        with off1:
-            st.session_state["auto_fix_offset_eu"] = st.number_input("Europa Offset (Min) [09:00]", -120, 60, int(st.session_state.get("auto_fix_offset_eu", 20)))
-        with off2:
-            st.session_state["auto_fix_offset_us"] = st.number_input("USA Offset (Min) [15:30]", -120, 60, int(st.session_state.get("auto_fix_offset_us", 20)))
+        st.write("---")
+        st.caption("Yahoo-Snapshot-Profile")
+        st.write("Europa: `EU_PRE 08:15`, `EU_OPEN 10:00`, `EU_POST 18:00`")
+        st.write("USA: `US_PRE 08:45 NY`, `US_OPEN 09:55 NY`, `US_POST 16:15 NY`")
 
     # =========================================================
     # 2. FILTER-REGELN

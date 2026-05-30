@@ -33,7 +33,9 @@ def zeige_erklaerungen_kennzahlen():
         "Day Status / Swing Status": "Bewertungsstand einer gespeicherten Prognose, z.B. abgeschlossen, Zeitablauf, nicht bewertet oder keine Daten.",
         "Day Treffer / Swing Treffer": "Historisches Ergebnis der jeweiligen Strategie. 1 steht für Treffer, 0 für Fehler, leer für nicht bewertbar oder neutral.",
         "Day Erreicht am / Swing Erreicht am": "Datum, an dem Take Profit, Stop Loss oder das Ende der Haltedauer erreicht wurde.",
-        "Day Rendite % / Swing Rendite %": "Tatsächliche Rendite der bewerteten Prognose bis Treffer, Fehler oder Zeitablauf."
+        "Day Rendite % / Swing Rendite %": "Tatsächliche Rendite der bewerteten Prognose bis Treffer, Fehler oder Zeitablauf.",
+        "Prognose-Profil": "Zeitfenster der Yahoo-Prognose: PRE für Vorbörse, OPEN für regulären Handel, POST für Nachbörse und MANUELL für eine manuelle Fixierung.",
+        "Frühester Einstieg": "Erste vollständig nach der Fixierung beginnende Yahoo-5-Minuten-Kerze. Frühere Kursbewegungen dürfen nicht als Treffer zählen."
     }
 
     with st.expander("Detaillierte Erklärung der Kennzahlen", expanded=True):
@@ -47,6 +49,7 @@ def zeige_erklaerungen_auswertung():
         st.write("Sie gilt als Treffer, sobald der Kurs innerhalb der Haltedauer das Take-Profit-Level erreicht.")
         st.write("Wird kein Take Profit und kein Stop Loss erreicht, entscheidet nach Ablauf der Haltedauer die Rendite: positiv zählt als Treffer, negativ als Fehler, neutral bleibt ohne Trefferwertung.")
         st.write("Day und Swing werden getrennt bewertet. Dadurch kann eine Aktie aus einer einzigen gespeicherten Prognose zwei historische Ergebnisse erhalten.")
+        st.write("Die Intraday-Kontrolle verwendet Yahoo-5-Minuten-Kerzen. Gewertet werden nur Kerzen nach dem tatsächlichen Fixierungszeitpunkt; die Einstiegskerze selbst zählt noch nicht als Treffer.")
 
 
 def zeige_marktlage_box(marktlage):

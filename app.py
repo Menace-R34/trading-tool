@@ -66,9 +66,10 @@ def main():
                 settings = hole_filter_settings_aus_session()
                 from modules.prognose_speicher import _zeitstempel_str, protokolliere_fixierung
                 settings["daten_geladen_zeitstempel"] = _zeitstempel_str()
+                settings["prognose_profil"] = "MANUELL"
                 speichere_prognosen(df_fix, settings)
-                protokolliere_fixierung("Europa")
-                protokolliere_fixierung("USA")
+                protokolliere_fixierung("Europa", profil="MANUELL")
+                protokolliere_fixierung("USA", profil="MANUELL")
                 st.success("Prognosen fixiert!")
                 st.rerun()
 

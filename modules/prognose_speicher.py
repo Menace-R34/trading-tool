@@ -5,7 +5,7 @@ import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
 import shutil
@@ -214,6 +214,8 @@ def speichere_prognosen(df_signale, settings=None, dateiname=DATEI_PROGNOSEN):
     df_export["Prognose-Datum"] = prognose_datum
     df_export["Prognose-Zeit"] = prognose_zeit
     df_export["Prognose-Zeitstempel"] = prognose_zeitstempel
+    df_export["Prognose-Profil"] = settings.get("prognose_profil", "MANUELL")
+    df_export["Frühester Einstieg"] = _fruehester_einstieg_str(_jetzt_berlin())
     df_export["Börsendaten geladen"] = settings.get("daten_geladen_zeitstempel", prognose_zeitstempel)
     df_export["Analysezeitraum"] = settings.get("analyse_zeitraum", "1y")
 
@@ -236,6 +238,12 @@ def speichere_prognosen(df_signale, settings=None, dateiname=DATEI_PROGNOSEN):
 
     _schreibe_csv(neu, dateiname)
     return neu
+
+
+def _fruehester_einstieg_str(zeitpunkt, kerze_minuten=5):
+    minute = (zeitpunkt.minute // kerze_minuten + 1) * kerze_minuten
+    einstieg = zeitpunkt.replace(second=0, microsecond=0, minute=0) + timedelta(minutes=minute)
+    return einstieg.strftime("%Y-%m-%d %H:%M")
 
 # =========================================================
 # 05_BACKUP_UND_LOESCHEN
@@ -385,7 +393,7 @@ def lade_heutigen_snapshot(region=None):
 # =========================================================
 # 07_FIXIERUNGS_METADATEN
 # =========================================================
-def protokolliere_fixierung(region):
+def protokolliere_fixierung(region, profil=None):
     """Speichert den Zeitpunkt der Fixierung für eine Region in den Metadaten."""
     import json
     _stelle_data_ordner_sicher()
@@ -415,6 +423,13 @@ def protokolliere_fixierung(region):
     if heute not in meta["fixierungs_zeitstempel"]:
         meta["fixierungs_zeitstempel"][heute] = {}
     meta["fixierungs_zeitstempel"][heute][region] = zeitstempel
+
+    if profil:
+        if "profil_fixierungen" not in meta:
+            meta["profil_fixierungen"] = {}
+        if heute not in meta["profil_fixierungen"]:
+            meta["profil_fixierungen"][heute] = {}
+        meta["profil_fixierungen"][heute][profil] = zeitstempel
     
     _schreibe_json_datei(DATEI_METADATEN, meta)
 
@@ -443,6 +458,18 @@ def hole_fixierungs_status(region=None, datum=None, vollstaendig=False):
     if region:
         return fix_heute.get(region)
     return fix_heute
+
+
+def hole_profil_fixierungs_status(datum=None):
+    import json
+    if not DATEI_METADATEN.exists():
+        return {}
+    try:
+        with open(DATEI_METADATEN, "r") as f:
+            meta = json.load(f)
+    except Exception:
+        return {}
+    return meta.get("profil_fixierungen", {}).get(datum or _heute_str(), {})
 
 # =========================================================
 # 08_BACKUP_WIEDERHERSTELLUNG

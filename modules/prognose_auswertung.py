@@ -141,6 +141,7 @@ def _werte_einzelprognose_aus(zeile, strategie="day", horizon_tage=3, kontrolle_
     intraday = werte_intraday_prognose_aus(
         ticker=ticker,
         prognose_datum=prognose_datum,
+        prognose_zeitstempel=zeile.get("Prognose-Zeitstempel", ""),
         kaufzeit=buy_in_zeit,
         stop_loss=stop_loss,
         take_profit=take_profit,

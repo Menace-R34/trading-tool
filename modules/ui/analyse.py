@@ -169,8 +169,9 @@ def _darstellung_regionen_seite(region):
             if st.button(f"Diese Signale für {region} jetzt fixieren"):
                 settings = hole_filter_settings_aus_session()
                 settings["daten_geladen_zeitstempel"] = _zeitstempel_str()
+                settings["prognose_profil"] = "MANUELL"
                 speichere_prognosen(df_region, settings)
-                protokolliere_fixierung(region)
+                protokolliere_fixierung(region, profil="MANUELL")
                 st.success("Prognosen erfolgreich fixiert!")
                 st.rerun()
             

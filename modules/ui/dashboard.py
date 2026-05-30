@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-import datetime
 from modules.region_logik import filtere_nach_region
 from modules.universum import hole_tickerliste_aus_universum
 from modules.auswertung_builder import baue_auswertung_fuer_ticker
@@ -16,8 +15,6 @@ from modules.prognose_speicher import (
     hole_fixierungs_status,
     _zeitstempel_str,
     _jetzt_berlin,
-    ZEITZONE_BERLIN,
-    ZEITZONE_NEW_YORK
 )
 from modules.markt_lage import berechne_marktlage
 from modules.ui.common import _prepare_df, _ergaenze_intraday_timing
@@ -28,25 +25,8 @@ def _formatiere_fixierzeit(region):
         return "Auto-Fix aus"
 
     if region == "Europa":
-        offset = int(st.session_state.get("auto_fix_offset_eu", 20))
-        basis = datetime.datetime.combine(
-            _jetzt_berlin().date(),
-            datetime.time(9, 0),
-            tzinfo=ZEITZONE_BERLIN,
-        )
-        boerse = "Xetra 09:00"
-    else:
-        offset = int(st.session_state.get("auto_fix_offset_us", 20))
-        jetzt_berlin = _jetzt_berlin()
-        basis = datetime.datetime.combine(
-            jetzt_berlin.astimezone(ZEITZONE_NEW_YORK).date(),
-            datetime.time(9, 30),
-            tzinfo=ZEITZONE_NEW_YORK,
-        )
-        boerse = "NYSE/Nasdaq 09:30"
-
-    ziel_berlin = (basis + datetime.timedelta(minutes=offset)).astimezone(ZEITZONE_BERLIN)
-    return f"Auto-Fix ca. {ziel_berlin:%H:%M} Uhr deutsche Zeit ({boerse} + {offset} Min)"
+        return "Profile: 08:15 · 10:00 · 18:00 deutsche Zeit"
+    return "Profile: 08:45 · 09:55 · 16:15 New Yorker Zeit"
 
 
 def _sortiere_numerisch(df, spalte, ascending=False):
